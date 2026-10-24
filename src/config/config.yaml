@@ -1,0 +1,19 @@
+game:
+  default_fps: 240
+  physics_fps: 60
+terrain:
+  min_size: 700
+  max_size: 1200
+  mesh_main_density: 0.2
+
+  main_frequency: 0.05
+  main_amplitude: 1
+
+  background_frequency: 0.001
+  background_amplitude: 30
+  
+  mountains_frequency: 0.006
+  mountains_amplitude: 35
+  mountains_chance: 0.004
+debug:
+  debug_seed: 12
