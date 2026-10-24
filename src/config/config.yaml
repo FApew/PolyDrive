@@ -1,6 +1,7 @@
 game:
   default_fps: 240
   physics_fps: 60
+
 terrain:
   min_size: 700
   max_size: 1200
@@ -15,5 +16,15 @@ terrain:
   mountains_frequency: 0.006
   mountains_amplitude: 35
   mountains_chance: 0.004
+
+track:
+  min_segments: 11
+  max_segments: 23
+  max_segment_variation: 0
+  segment_border: 0.03
+  border: 0.1
+  center: 0.3
+  middle_cross_chance: 0.1
+
 debug:
-  debug_seed: 12
+  debug_seed: 1

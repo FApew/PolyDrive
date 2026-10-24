@@ -25,7 +25,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     10000
 )
-camera.position.set(0, 5, 10);
+camera.position.set(0, 1000, 10);
 camera.lookAt(0, 0, 0)
 
 //NOTE - THREE Renderer Init
@@ -79,7 +79,10 @@ const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.position.set(100, 150, 50);
 scene.add(sun);
 
-genTerrain(config.debug.debug_seed, scene, world)
+let seed = config.debug.debug_seed//Date.now()
+console.log(seed)
+
+genTerrain(seed, scene, world)
 
 const geometry = new THREE.BoxGeometry(1.85, 1.64, 4.7);
 const material = new THREE.MeshStandardMaterial({

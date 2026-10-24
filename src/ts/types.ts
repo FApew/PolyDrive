@@ -20,4 +20,14 @@ export interface GameConfig {
         mountains_amplitude: number
         mountains_chance: number
     }
+
+    track: {
+        min_segments: number
+        max_segments: number
+        max_segment_variation: number
+        segment_border: number
+        border: number
+        center: number
+        middle_cross_chance: number
+    }
 }
