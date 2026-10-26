@@ -79,8 +79,9 @@ const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.position.set(100, 150, 50);
 scene.add(sun);
 
-let seed = config.debug.debug_seed//Date.now()
-console.log(seed)
+let seed = //config.debug.debug_seed
+Date.now()
+console.log("Seed:", seed)
 
 genTerrain(seed, scene, world)
 

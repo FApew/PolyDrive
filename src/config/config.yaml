@@ -5,7 +5,7 @@ game:
 terrain:
   min_size: 700
   max_size: 1200
-  mesh_main_density: 0.2
+  mesh_main_density: 0.15
 
   main_frequency: 0.05
   main_amplitude: 1
@@ -18,13 +18,22 @@ terrain:
   mountains_chance: 0.004
 
 track:
-  min_segments: 11
-  max_segments: 23
+  min_segments: 4
+  max_segments: 25
   max_segment_variation: 0
-  segment_border: 0.03
+  segment_border: 0.01
+
   border: 0.1
   center: 0.3
-  middle_cross_chance: 0.1
+
+  middle_cross_chance: 1
+  middle_cross_distance: 0.2
+
+  max_anchor_distance: 1.4
+  min_curve_angle: 60
+  max_curve_angle: 160
+
+  max_tries: 1000
 
 debug:
-  debug_seed: 1
+  debug_seed: 1792958379302

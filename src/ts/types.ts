@@ -29,5 +29,10 @@ export interface GameConfig {
         border: number
         center: number
         middle_cross_chance: number
+        middle_cross_distance: number
+        min_curve_angle: number
+        max_curve_angle: number
+        max_anchor_distance: number
+        max_tries: number
     }
 }

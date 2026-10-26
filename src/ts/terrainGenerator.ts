@@ -94,7 +94,7 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
     genTrackLine(seed, planeDim, scene);
 
     const material = new THREE.MeshStandardMaterial({
-        color: 0x236705,
+        color: 0x000000,//0x236705,
         flatShading: true,
         roughness: 1,
         metalness: 0

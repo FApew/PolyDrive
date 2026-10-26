@@ -32,6 +32,8 @@ export function genTrackLine(seed: number, planeDim: number, scene: THREE.Scene)
 function getSegments(random: any): number[] {
     let segmentN = Math.round(random() * (config.track.max_segments - config.track.min_segments)) + config.track.min_segments
     if (segmentN % 2 == 1) segmentN++
+    console.log("segmentN:", segmentN)
+
     const MAX = Math.PI * 2
     const variation = segmentN * config.track.max_segment_variation
 
@@ -56,6 +58,7 @@ function getSegments(random: any): number[] {
 function getPoints(segments: number[], random: any, planeDim: number): THREE.Vector3[] {
     const maxRadius = planeDim / 2 * (1 - config.track.border)
     const minRadius = planeDim / 2 * config.track.center
+    const maxDistance = (maxRadius - minRadius) / config.track.max_anchor_distance
 
     let points: any = [], middleCross = 0
     for (let i = 0; i < segments.length; i++) {
@@ -66,30 +69,80 @@ function getPoints(segments: number[], random: any, planeDim: number): THREE.Vec
 
         if (i == segments.length - 1) maxTheta += 2*Math.PI
 
-        let theta = (random() * Math.abs(maxTheta - minTheta)) + minTheta
-        let r = (random() * (maxRadius - minRadius)) + minRadius
+        const theta = (
+            i == 0 ? 
+            (maxTheta - minTheta ) / 2 :
+            (random() * Math.abs(maxTheta - minTheta)) + minTheta
+        )
 
-        if (middleCross > 0) middleCross--
+        let r, angle = -1, o = 0
+        do {
+            r = (random() * (maxRadius - minRadius)) + minRadius
+            if (i > 1) angle = helperCalcAngle(points[i - 2], points[i - 1], {r: r, theta: theta})
+        } while (
+            (i > 0 && Math.abs(r - points[i - 1].r) > maxDistance) ||
+            (angle == -1 || angle < config.track.min_curve_angle || angle > config.track.max_curve_angle) &&
+            ++o < config.track.max_tries
+        )
 
-        if (i < segments.length - 2)
-        if (random() < config.track.middle_cross_chance && middleCross == 0) {
-            //theta += Math.PI
-            r = random() * minRadius / 2
-            middleCross = 3
+        //if (i > 2) console.log(helperCalcAngle(points[i - 2], points[i - 1], {r: r, theta: theta}), i, o)
+
+        if (o == config.track.max_tries && i > 1) {
+            i-=2
+            continue
         }
         
-        points.push({r: r, theta: theta})
+        if (middleCross > 0) middleCross--
+
+
+        if (
+            i < segments.length - 2 && 
+            i != 0 &&
+            random() < config.track.middle_cross_chance && 
+            middleCross == 0
+        ) {
+            let crossRadius = random() * (minRadius - minRadius * config.track.middle_cross_distance) + minRadius * config.track.middle_cross_distance
+            if (i > 1) angle = helperCalcAngle(points[i - 2], points[i - 1], {r: r, theta: theta})
+            
+            if (
+                Math.abs(crossRadius - points[i - 1].r) < maxDistance &&
+                (angle == -1 || angle < config.track.min_curve_angle || angle > config.track.max_curve_angle)
+            ) {
+                r = crossRadius
+                middleCross = 3
+            }
+        }
+        
+        points[i] = {r: r, theta: theta}
+    }
+
+    let angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1]), o = 0
+    while ((angle0 < config.track.min_curve_angle || angle0 > config.track.max_curve_angle) && ++o < config.track.max_tries) {
+        points[0].r = (random() * (maxRadius - minRadius)) + minRadius
+
+        angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1])
     }
 
     points = points.map((point: any) => {
         return new THREE.Vector3(
             point.r*Math.cos(point.theta),
-            50,
+            70,
             point.r*Math.sin(point.theta)
         )
     })
 
     return points
+
+    function helperCalcAngle(p1: any, p2: any, p3: any): number {
+        const [x1, x2, x3] = [p1.r*Math.cos(p1.theta), p2.r*Math.cos(p2.theta), p3.r*Math.cos(p3.theta)]
+        const [y1, y2, y3] = [p1.r*Math.sin(p1.theta), p2.r*Math.sin(p2.theta), p3.r*Math.sin(p3.theta)]
+
+        const a1 = Math.atan2(y1 - y2, x1 - x2);
+        const a2 = Math.atan2(y3 - y2, x3 - x2);
+
+        const diff = Math.abs(a1 - a2);
+        return Math.min(diff, 2 * Math.PI - diff) * 180 / Math.PI;
+    }
 }
 
 function showDebugSegments(segments: number[], planeDim: number, scene: THREE.Scene): void {
@@ -99,12 +152,12 @@ function showDebugSegments(segments: number[], planeDim: number, scene: THREE.Sc
         const g = new THREE.BufferGeometry().setFromPoints(
             [new THREE.Vector3(
                 planeDim*Math.cos(point) / 2 * config.track.center, 
-                50,
+                70,
                 planeDim*Math.sin(point) / 2 * config.track.center
             ), 
             new THREE.Vector3(
                 planeDim*Math.cos(point) / 2 * (1 - config.track.border), 
-                50, 
+                70, 
                 planeDim*Math.sin(point) / 2 * (1 - config.track.border)
             )]
         )
@@ -120,7 +173,7 @@ function showDebugSegments(segments: number[], planeDim: number, scene: THREE.Sc
         ).getPoints(100)
     )
     const line1 = new THREE.LineLoop(g1, m)
-    line1.position.y = 50
+    line1.position.y = 70
     line1.rotateX(Math.PI / 2)
     scene.add(line1)
 
@@ -131,7 +184,7 @@ function showDebugSegments(segments: number[], planeDim: number, scene: THREE.Sc
         ).getPoints(100)
     )
     const line2 = new THREE.LineLoop(g2, m)
-    line2.position.y = 50
+    line2.position.y = 70
     line2.rotateX(Math.PI / 2)
     scene.add(line2)
 }
@@ -139,10 +192,16 @@ function showDebugSegments(segments: number[], planeDim: number, scene: THREE.Sc
 function showDebugPoints(points: THREE.Vector3[], scene: THREE.Scene): void {
     for (let i = 0; i < points.length; i++) {
         const g = new THREE.BoxGeometry(5, 5, 5)
-        const m = new THREE.MeshBasicMaterial({ color: 0xff0000 })
+
+        const t = (i - 1) / (points.length - 1);
+        let color = new THREE.Color().setHSL(t, 1, 0.5);
+        if (i == 0) color.setHex(0xffffff)
+
+        const m = new THREE.MeshBasicMaterial({ color });
+
         const cube = new THREE.Mesh(g, m)
 
-        cube.position.set(points[i]!.x, 50, points[i]!.z)
+        cube.position.set(points[i]!.x, 70, points[i]!.z)
 
         scene.add(cube)
     }
