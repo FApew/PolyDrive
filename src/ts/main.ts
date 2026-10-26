@@ -2,6 +2,7 @@ import * as THREE from "three"
 import * as CANNON from "cannon-es"
 import Stats from "stats.js"
 import CannonDebugger from "cannon-es-debugger"
+import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
 
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { updatePhysics } from "./physicsHandler"
@@ -35,6 +36,16 @@ renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
 document.body.appendChild(renderer.domElement)
+
+const labelRenderer = new CSS2DRenderer();
+
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = "absolute";
+labelRenderer.domElement.style.top = "0";
+labelRenderer.domElement.style.left = "0";
+labelRenderer.domElement.style.pointerEvents = "none";
+
+document.body.appendChild(labelRenderer.domElement);
 
 //NOTE - THREE Stats
 const stats = new Stats()
@@ -79,8 +90,8 @@ const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.position.set(100, 150, 50);
 scene.add(sun);
 
-let seed = //config.debug.debug_seed
-Date.now()
+let seed = config.debug.debug_seed
+//Date.now()
 console.log("Seed:", seed)
 
 genTerrain(seed, scene, world)
@@ -138,6 +149,7 @@ function gameLoop(currentFrame: number): void {
     //cannonDebugger.update();
     controls.update();
     renderer.render(scene, camera)
+    //labelRenderer.render(scene, camera);
 
     stats.end()
 }

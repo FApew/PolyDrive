@@ -3,8 +3,8 @@ game:
   physics_fps: 60
 
 terrain:
-  min_size: 700
-  max_size: 1200
+  min_size: 900
+  max_size: 1300
   mesh_main_density: 0.15
 
   main_frequency: 0.05
@@ -18,22 +18,128 @@ terrain:
   mountains_chance: 0.004
 
 track:
-  min_segments: 4
-  max_segments: 25
-  max_segment_variation: 0
+  centerline_samples: 500
+
+  min_segments: 8
+  max_segments: 20
+  max_segment_variation: 0.004
   segment_border: 0.01
 
-  border: 0.1
+  min_sector_length: 2
+  change_sector_chance: 0.8
+
+  border: 0.2
   center: 0.3
 
-  middle_cross_chance: 1
-  middle_cross_distance: 0.2
+  max_tries: 100
 
-  max_anchor_distance: 1.4
-  min_curve_angle: 60
-  max_curve_angle: 160
+  casual: 
+    segment_weight: 1
 
-  max_tries: 1000
+    max_anchor_per_segment: 2
+    multiple_anchors_chance: 0.3
+
+    middle_cross_chance: 0.4
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 20
+    max_anchor_distance: 400
+
+    min_curve_angle: 45
+    max_curve_angle: 160
+
+  f1: 
+    segment_weight: 3
+
+    max_anchor_per_segment: 4
+    multiple_anchors_chance: 0.8
+
+    middle_cross_chance: 0
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 20
+    max_anchor_distance: 400
+
+    min_curve_angle: 60
+    max_curve_angle: 160
+
+  rally: 
+    segment_weight: 1
+
+    max_anchor_per_segment: 3
+    multiple_anchors_chance: 0.7
+
+    middle_cross_chance: .1
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 20
+    max_anchor_distance: 400
+
+    min_curve_angle: 30
+    max_curve_angle: 100
+
+  touring: 
+    segment_weight: 2
+
+    max_anchor_per_segment: 2
+    multiple_anchors_chance: 0.2
+
+    middle_cross_chance: 0
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 20
+    max_anchor_distance: 400
+
+    min_curve_angle: 60
+    max_curve_angle: 160
+
+  hillclimb: 
+    segment_weight: 2
+
+    max_anchor_per_segment: 2
+    multiple_anchors_chance: 0.8
+
+    middle_cross_chance: 0
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 100
+    max_anchor_distance: 400
+
+    min_curve_angle: 25
+    max_curve_angle: 90
+
+  drift: 
+    segment_weight: 2
+
+    max_anchor_per_segment: 2
+    multiple_anchors_chance: 0.8
+
+    middle_cross_chance: 0.3
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 20
+    max_anchor_distance: 200
+
+    min_curve_angle: 60
+    max_curve_angle: 160
+
+  karting: 
+    segment_weight: 1
+
+    max_anchor_per_segment: 2
+    multiple_anchors_chance: 0.8
+
+    middle_cross_chance: 0.1
+    middle_cross_distance: 0.2
+
+    min_anchor_distance: 20
+    max_anchor_distance: 200
+
+    min_curve_angle: 40
+    max_curve_angle: 100
 
 debug:
-  debug_seed: 1792958379302
+  show_segments: true
+  show_points: true
+  show_centerline: true
+  debug_seed: -134
