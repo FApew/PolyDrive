@@ -36,9 +36,14 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
 
     const flatPoints = flatCenterlineCurve.getPoints(config.track.centerline_samples)
 
-    flatPoints.forEach(point => {
+    let sum = 0
+    flatPoints.forEach((point, idx, arr) => {
+
+        if (idx != 0 && idx != arr.length - 1) sum += point!.distanceTo(arr[idx + 1]!)
+
         point.setY(getHeight(point.x, -point.z, seed, noise, maskNoiseFun, 0) + 2)
     })
+    console.log("Track Length:", parseFloat(sum.toFixed(2)), "m")
 
     const centerlineCurve = new THREE.CatmullRomCurve3(
         flatPoints,

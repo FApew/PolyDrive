@@ -14,13 +14,27 @@ let modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "
 //NOTE - genTrackLine()
 export function genTrackLine(seed: number, planeDim: number, scene: THREE.Scene): THREE.Vector3[] {
     const random = alea(seed)
+
+    const stTime = Date.now()
     
-    const segments = getSegments(random)
+    let points: THREE.Vector3[]
+    let segments: Segment[]
+
+    let o = 0
+    do {
+        segments = getSegments(random)
+
+        points = getPoints(segments, random, planeDim)
+        o++
+    } while (points.length < segments.length && o < config.track.max_tries) 
+
+    console.log("Segments:", segments.length)
+    console.log("Elapsed:", Date.now() - stTime, "ms")
+
+    if (points.length < segments.length) console.log("TORELLI")
+
     if (config.debug.show_segments) showDebugSegments(segments, planeDim, scene)
-
-    const points = getPoints(segments, random, planeDim)
     if (config.debug.show_points) showDebugPoints(points, scene)
-
     if (config.debug.show_centerline) showDebugPath(points, scene)
     
     return points
@@ -33,7 +47,6 @@ function getSegments(random: any): Segment[] {
         if (segmentN < config.track.max_segments) {segmentN++}
         else {segmentN--}
     }
-    console.log("segmentN:", segmentN)
 
     const MAX = Math.PI * 2
     const variation = segmentN * config.track.max_segment_variation
@@ -95,9 +108,8 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
     const minRadius = planeDim / 2 * config.track.center
 
     let points: any[] = [], middleCross = 0, OO = 0, currentIdx = 0, pSegmentPoints = []
-    const stTime = Date.now()
 
-    for (let i = 0; i < segments.length && OO < 50000; i++) {
+    for (let i = 0; i < segments.length && OO < config.track.max_tries * 100; i++) {
         const nextIdx = (i + 1) % segments.length
 
         const minTheta = segments[i]!.weight * (1 + config.track.segment_border)
@@ -109,7 +121,8 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
 
         let segmentPoints = 0
         pSegmentPoints[i] = currentIdx
-        for (let j = 0; j < config.track[currentMode].max_anchor_per_segment && ++OO < 50000; j++) {
+
+        for (let j = 0; j < config.track[currentMode].max_anchor_per_segment && ++OO < config.track.max_tries * 100; j++) {
 
             if (
                 j > 0 && 
@@ -215,11 +228,13 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
         }
     }
 
-    let angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1]), o = 0
-    while ((angle0 < config.track.casual.min_curve_angle || angle0 > config.track.casual.max_curve_angle) && ++o < config.track.max_tries) {
-        points[0].r = (random() * (maxRadius - minRadius)) + minRadius
+    if (points. length > 3) {
+        let angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1]), o = 0
+        while ((angle0 < config.track.casual.min_curve_angle || angle0 > config.track.casual.max_curve_angle) && ++o < config.track.max_tries) {
+            points[0].r = (random() * (maxRadius - minRadius)) + minRadius
 
-        angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1])
+            angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1])
+        }
     }
 
     points = points.map((point: any) => {
@@ -229,8 +244,6 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
             point.r*Math.sin(point.theta)
         )
     })
-
-    console.log(OO, Date.now() - stTime)
 
     return points
 
@@ -245,7 +258,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
         return Math.min(diff, 2 * Math.PI - diff) * 180 / Math.PI;
     }
 
-    function helperOverlap(points: THREE.Vector3[], samples: number = config.track.centerline_samples * 10, tol: number = 1) {
+    function helperOverlap(points: THREE.Vector3[], samples: number = config.track.centerline_samples, tol: number = 10) {
         const curve = new THREE.CatmullRomCurve3(
             points,
             false,
@@ -255,7 +268,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
         const p = curve.getPoints(samples)
 
         for (let i = 0; i < p.length; i++) {
-            for (let j = i + 30; j < p.length; j++) {
+            for (let j = i + 2; j < p.length; j++) {
 
                 if (i == 0 || j == p.length) continue
 
