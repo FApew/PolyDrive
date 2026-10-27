@@ -26,7 +26,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     10000
 )
-camera.position.set(0, 1000, 10);
+camera.position.set(270, 30, 130);
 camera.lookAt(0, 0, 0)
 
 //NOTE - THREE Renderer Init
@@ -75,7 +75,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-controls.target.set(0, 0, 0);
+controls.target.set(275, 20, 130);
 controls.update();
 
 //!SECTION
@@ -95,6 +95,27 @@ let seed = config.debug.debug_seed
 console.log("Seed:", seed)
 
 genTerrain(seed, scene, world)
+
+window.addEventListener("keypress", (e) => {
+    if (e.key == "t") {
+        scene.clear()
+
+        world.bodies.slice().forEach(body => world.removeBody(body))
+        world.constraints.slice().forEach(constraint => world.removeConstraint(constraint))
+
+        world.clearForces()
+
+        let seed = config.debug.debug_seed //Date.now()
+        console.log("\n")
+        console.log("Seed:", seed)
+        genTerrain(seed, scene, world)
+
+        const sun = new THREE.DirectionalLight(0xffffff, 3);
+
+        sun.position.set(100, 150, 50);
+        scene.add(sun);
+    }
+})
 
 const geometry = new THREE.BoxGeometry(1.85, 1.64, 4.7);
 const material = new THREE.MeshStandardMaterial({
@@ -146,7 +167,7 @@ function gameLoop(currentFrame: number): void {
 
     update()
 
-    //cannonDebugger.update();
+    if (config.debug.show_cannon_debugger) cannonDebugger.update();
     controls.update();
     renderer.render(scene, camera)
     //labelRenderer.render(scene, camera);

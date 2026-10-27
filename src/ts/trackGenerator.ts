@@ -4,26 +4,29 @@ import alea from "alea"
 
 //NOTE - Config Init
 import YAML from "yaml"
-import type { GameConfig, Mode, Segment } from "./types"
+import type { GameConfig, Mode, Segment, Point, ModeNodes } from "./types"
 import configTxt from "../config/config.yaml?raw"
-import { rand } from "three/tsl"
 const config: GameConfig = YAML.parse(configTxt)
 
-let modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
+const modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
 
 //NOTE - genTrackLine()
-export function genTrackLine(seed: number, planeDim: number, scene: THREE.Scene): THREE.Vector3[] {
+export function genTrackLine(seed: number, planeDim: number, scene: THREE.Scene): {poses: THREE.Vector3[], modes: ModeNodes} {
     const random = alea(seed)
-
     const stTime = Date.now()
     
-    let points: THREE.Vector3[]
+    //Points and Segments Array
+    let points: Point[]
     let segments: Segment[]
+    
 
+    //Do While to try everything maximum of <config.track.max_tries> times
     let o = 0
     do {
+        //Segment generation
         segments = getSegments(random)
 
+        //Points Generation
         points = getPoints(segments, random, planeDim)
         o++
     } while (points.length < segments.length && o < config.track.max_tries) 
@@ -31,13 +34,25 @@ export function genTrackLine(seed: number, planeDim: number, scene: THREE.Scene)
     console.log("Segments:", segments.length)
     console.log("Elapsed:", Date.now() - stTime, "ms")
 
-    if (points.length < segments.length) console.log("TORELLI")
+    //Track generation failed
+    if (points.length < segments.length) throw new Error("hell nahh")
 
+    const poses = points.map(point => {
+        return new THREE.Vector3(
+            point.pose.x,
+            point.pose.y,
+            point.pose.z
+        )
+    })
+
+    let modeNodes: ModeNodes = getModeNodes(points, poses)
+
+    //Debugging toggles
     if (config.debug.show_segments) showDebugSegments(segments, planeDim, scene)
-    if (config.debug.show_points) showDebugPoints(points, scene)
-    if (config.debug.show_centerline) showDebugPath(points, scene)
+    if (config.debug.show_points) showDebugPoints(poses, scene)
+    if (config.debug.show_floating_centerline) showDebugPath(poses, scene)
     
-    return points
+    return {poses: poses, modes: modeNodes}
 }
 
 //NOTE - getSegments()
@@ -103,7 +118,7 @@ function getSegments(random: any): Segment[] {
 }
 
 //NOTE - getPoints()
-function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Vector3[] {
+function getPoints(segments: Segment[], random: any, planeDim: number): Point[] {
     const maxRadius = planeDim / 2 * (1 - config.track.border)
     const minRadius = planeDim / 2 * config.track.center
 
@@ -202,7 +217,6 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
                     
                     //console.log(lastPoints, segmentPoints, pSegmentPoints)
                 }
-                
 
                 lastPoints = lastPoints.map((point: any) => {
                     return new THREE.Vector3(
@@ -238,11 +252,14 @@ function getPoints(segments: Segment[], random: any, planeDim: number): THREE.Ve
     }
 
     points = points.map((point: any) => {
-        return new THREE.Vector3(
-            point.r*Math.cos(point.theta),
-            70,
-            point.r*Math.sin(point.theta)
-        )
+        return {
+            pose: new THREE.Vector3(
+                point.r*Math.cos(point.theta),
+                70,
+                point.r*Math.sin(point.theta)
+            ),
+            mode: point.m
+        }
     })
 
     return points
@@ -375,6 +392,7 @@ function showDebugPoints(points: THREE.Vector3[], scene: THREE.Scene): void {
 }
 
 function showDebugPath(points: THREE.Vector3[], scene: THREE.Scene): void {
+
     const curve = new THREE.CatmullRomCurve3(
         points,
         true,
@@ -382,11 +400,48 @@ function showDebugPath(points: THREE.Vector3[], scene: THREE.Scene): void {
         0
     )
 
-    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(500))
+    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(config.track.centerline_samples))
     const material = new THREE.LineBasicMaterial({ color: 0x00ff00 })
 
     const line = new THREE.Line(geometry, material)
     line.name = "Centerline"
 
     scene.add(line)
+}
+
+function getModeNodes(points: Point[], poses: THREE.Vector3[]): ModeNodes {
+    
+    let current = {idx: 0, mode: points[0]!.mode}
+
+    let modeNodes = {points: [0], modes: [current.mode]}
+
+    const curve = new THREE.CatmullRomCurve3(
+        poses,
+        true,
+        "centripetal",
+        0
+    )
+    const curvePoints = curve.getPoints(config.track.centerline_samples)
+
+    let previous = Infinity
+    curvePoints.forEach((curvePoint, idx) => {
+        if (current.idx == points.length - 1) return
+        const dist = curvePoint.distanceTo(points[current.idx + 1]!.pose)
+
+        if (previous < dist) {
+            current.idx++
+            current.mode = points[current.idx]!.mode
+            
+            if (points[current.idx - 1]!.mode != current.mode) {
+                modeNodes.points.push(idx)
+                modeNodes.modes.push(current.mode)
+            }
+
+            previous = Infinity
+        } else {
+            previous = dist
+        }  
+    })
+
+    return modeNodes
 }

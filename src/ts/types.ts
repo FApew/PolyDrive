@@ -1,3 +1,5 @@
+import * as THREE from "three"
+
 export interface GameConfig {
     game: {
         default_fps: number
@@ -5,10 +7,16 @@ export interface GameConfig {
     }
 
     debug: {
-        debug_seed: number
+        show_cannon_debugger: boolean
         show_segments: boolean
         show_points: boolean
+        show_floating_centerline: boolean
         show_centerline: boolean
+        show_side_lines: boolean
+        show_pivots: boolean
+        show_turn_lines: boolean
+        show_road_sections: boolean
+        debug_seed: number
     }
 
     terrain: {
@@ -27,6 +35,11 @@ export interface GameConfig {
     track: {
         centerline_samples: number
 
+        turn_size: number
+        inner_turn_max_distance: number
+        inner_turn_min_distance: number
+        turn_smoothness: number
+
         min_segments: number
         max_segments: number
         max_segment_variation: number
@@ -41,6 +54,8 @@ export interface GameConfig {
 
         casual: {
             segment_weight: number
+
+            track_width: number
 
             max_anchor_per_segment: number
             multiple_anchors_chance: number
@@ -58,6 +73,8 @@ export interface GameConfig {
         f1: {
             segment_weight: number
 
+            track_width: number
+
             max_anchor_per_segment: number
             multiple_anchors_chance: number
 
@@ -73,6 +90,8 @@ export interface GameConfig {
 
         rally: {
             segment_weight: number
+
+            track_width: number
 
             max_anchor_per_segment: number
             multiple_anchors_chance: number
@@ -90,6 +109,8 @@ export interface GameConfig {
         touring: {
             segment_weight: number
 
+            track_width: number
+
             max_anchor_per_segment: number
             multiple_anchors_chance: number
 
@@ -105,6 +126,8 @@ export interface GameConfig {
 
         hillclimb: {
             segment_weight: number
+
+            track_width: number
 
             max_anchor_per_segment: number
             multiple_anchors_chance: number
@@ -122,6 +145,8 @@ export interface GameConfig {
         drift: {
             segment_weight: number
 
+            track_width: number
+
             max_anchor_per_segment: number
             multiple_anchors_chance: number
 
@@ -137,6 +162,8 @@ export interface GameConfig {
 
         karting: {
             segment_weight: number
+
+            track_width: number
 
             max_anchor_per_segment: number
             multiple_anchors_chance: number
@@ -154,4 +181,24 @@ export interface GameConfig {
 }
 
 export type Mode = "casual" | "rally" | "f1" | "touring" | "hillclimb" | "drift" | "karting"
+
 export type Segment = {weight: number, mode: Mode}
+
+export type Point = {pose: THREE.Vector3, mode: Mode}
+
+export type ModeNodes = {points: number[], modes: Mode[]}
+
+export type Pivot = {pivot: THREE.Vector3, idx: number, lr: "left" | "right"}
+
+export type nearTurn = {
+    l: THREE.Vector3[][],
+    r: THREE.Vector3[][],
+    pivots: Pivot[]
+    idx: number,
+    inTurn: boolean
+}
+
+export type SideLines = {
+    left: THREE.Vector3[],
+    right: THREE.Vector3[]
+}

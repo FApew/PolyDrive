@@ -18,7 +18,12 @@ terrain:
   mountains_chance: 0.004
 
 track:
-  centerline_samples: 500
+  centerline_samples: 1000
+
+  turn_size: 10
+  inner_turn_max_distance: 10
+  inner_turn_min_distance: 2
+  turn_smoothness: 15
 
   min_segments: 8
   max_segments: 20
@@ -36,6 +41,8 @@ track:
   casual: 
     segment_weight: 1
 
+    track_width: 9
+
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.3
 
@@ -50,6 +57,8 @@ track:
 
   f1: 
     segment_weight: 3
+
+    track_width: 12.5
 
     max_anchor_per_segment: 4
     multiple_anchors_chance: 0.8
@@ -66,6 +75,8 @@ track:
   rally: 
     segment_weight: 1
 
+    track_width: 5.5
+
     max_anchor_per_segment: 3
     multiple_anchors_chance: 0.7
 
@@ -80,6 +91,8 @@ track:
 
   touring: 
     segment_weight: 2
+
+    track_width: 10
 
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.2
@@ -96,6 +109,8 @@ track:
   hillclimb: 
     segment_weight: 2
 
+    track_width: 5
+
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.8
 
@@ -110,6 +125,8 @@ track:
 
   drift: 
     segment_weight: 2
+
+    track_width: 10
 
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.8
@@ -126,6 +143,8 @@ track:
   karting: 
     segment_weight: 1
 
+    track_width: 8
+
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.8
 
@@ -139,7 +158,16 @@ track:
     max_curve_angle: 100
 
 debug:
-  show_segments: true
-  show_points: true
+  show_cannon_debugger: false
+  show_segments: false
+  show_points: false
+  show_floating_centerline: false
   show_centerline: true
-  debug_seed: 58
+  show_side_lines: true
+  show_pivots: false
+  show_turn_lines: false
+  show_road_sections: false
+  debug_seed: 583
+
+#1793103021044
+#1793103078839
