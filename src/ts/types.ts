@@ -15,7 +15,7 @@ export interface GameConfig {
         show_side_lines: boolean
         show_pivots: boolean
         show_turn_lines: boolean
-        show_road_sections: boolean
+        show_road_sections: 2 | 1 | 0
         debug_seed: number
     }
 

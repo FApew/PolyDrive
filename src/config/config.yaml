@@ -23,7 +23,7 @@ track:
   turn_size: 10
   inner_turn_max_distance: 10
   inner_turn_min_distance: 2
-  turn_smoothness: 15
+  turn_smoothness: 12
 
   min_segments: 8
   max_segments: 20
@@ -159,14 +159,23 @@ track:
 
 debug:
   show_cannon_debugger: false
+
   show_segments: false
+
   show_points: false
+
   show_floating_centerline: false
+
   show_centerline: true
-  show_side_lines: true
-  show_pivots: false
-  show_turn_lines: false
-  show_road_sections: false
+
+  show_side_lines: false
+  
+  show_pivots: true
+
+  show_turn_lines: true
+
+  show_road_sections: 2
+
   debug_seed: 583
 
 #1793103021044

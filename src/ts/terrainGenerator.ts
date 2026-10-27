@@ -279,6 +279,8 @@ function getSideLines(
         }
     })
 
+    if (config.debug.show_road_sections == 1) debugShowRoadLines(leftPoints, rightPoints, turns, poses)
+
     //NOTE - PivotCalculator
     for (let i = 0; i < nearTurns.l.length - 2; i+=2) {
 
@@ -333,18 +335,20 @@ function getSideLines(
     //NOTE - CornerFixer
     nearTurns.pivots.forEach(pivot => {
         if (pivot.lr == "left") {
-            fixCorner(leftPoints, nearTurns.l, pivot)
+            fixCorner(leftPoints, nearTurns.l, pivot, true)
+            fixCorner(rightPoints, nearTurns.r, pivot, false)
         } else {
-            fixCorner(rightPoints, nearTurns.r, pivot)
+            fixCorner(rightPoints, nearTurns.r, pivot, true)
+            fixCorner(leftPoints, nearTurns.l, pivot, false)
         }
     })
 
-    if (config.debug.show_road_sections) debugShowRoadLines(leftPoints, rightPoints, turns, poses)
+    if (config.debug.show_road_sections == 2) debugShowRoadLines(leftPoints, rightPoints, turns, poses)
 
     return {left: leftPoints, right: rightPoints}
 
     //NOTE - fixCorner()
-    function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot) {
+    function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot, usePivot: boolean) {
         const firstTurnPoint = nearTurnPoints[pivot.idx]![0]!
         const lastTurnPoint = nearTurnPoints[pivot.idx + 1]![nearTurns.r[pivot.idx + 1]!.length - 1]!
 
@@ -353,39 +357,103 @@ function getSideLines(
         const startIdx = sidePoints.indexOf(firstTurnPoint)
         const endIdx = sidePoints.indexOf(lastTurnPoint)
 
-        for (let i = startIdx; i <= endIdx; i++) {
+        if (usePivot) for (let i = startIdx; i <= endIdx; i++) {
             
             sidePoints[i]!.copy(pivot.pivot)
             sidePoints[i]!.y = avgY
         }
 
-        let startFarOffset = 0
+        /*let startFarOffset = 0
         for (let i = startIdx; i > 0; i--) {
             if (sidePoints[i]!.distanceTo(new THREE.Vector3(pivot.pivot.x, avgY, pivot.pivot.z)) < config.track.turn_smoothness) {
                 startFarOffset++
             } else break
-        }
+        }*/
 
-        helperLerp(sidePoints, startIdx - startFarOffset, startIdx)
-        helperLerp(sidePoints, endIdx, endIdx + config.track.turn_smoothness)
+        helperCurveSide(sidePoints, startIdx, endIdx, pivot.pivot.clone().setY(avgY), pivot.idx, nearTurnPoints, usePivot)
     }
 
     //NOTE - helperLerp()
-    function helperLerp(arr: THREE.Vector3[], startIdx: number, endIdx: number): void {
-        startIdx = Math.max(0, startIdx)
-        endIdx = Math.min(arr.length - 1, endIdx)
+    function helperCurveSide(
+        sidePoints: THREE.Vector3[], 
+        startIdx: number, 
+        endIdx: number, 
+        pivot: THREE.Vector3,
+        idx: number,
+        outerTurnPoints: THREE.Vector3[][],
+        usePivot: boolean
+    ): void {
+        let farStartPoints: THREE.Vector3[] = []
+        let farEndPoints: THREE.Vector3[] = []
 
-        if (startIdx >= endIdx) return
+        farStartPoints.push(sidePoints[startIdx - config.track.turn_smoothness]!)
 
-        const start = arr[startIdx]!.clone()
-        const end = arr[endIdx]!.clone()
+        farEndPoints.push(sidePoints[endIdx + config.track.turn_smoothness]!)
 
-        for (let i = startIdx + 1; i < endIdx; i++) {
-            const t = (i - startIdx) / (endIdx - startIdx)
+        let curvePoints: THREE.Vector3[] = []
+        if (usePivot) {
+            curvePoints = curvePoints.concat(farStartPoints).concat(pivot).concat(farEndPoints)
+        } else {
+            const avgIdx = Math.round(
+                (sidePoints.indexOf(outerTurnPoints[idx]![outerTurnPoints[idx]!.length - 1]!) + 
+                sidePoints.indexOf(outerTurnPoints[idx + 1]![0]!)) / 2
+            )
 
-            const target = start.clone().lerp(end, t)
-            arr[i]!.copy(target)
+            curvePoints = curvePoints.concat(outerTurnPoints[idx]!)
+            curvePoints = curvePoints.concat(sidePoints[avgIdx]!)
+            curvePoints = curvePoints.concat(outerTurnPoints[idx + 1]!)
         }
+
+        const curve = new THREE.CatmullRomCurve3(
+            curvePoints,
+            false,
+            "centripetal",
+            0
+        )
+
+        if (usePivot) {
+            const farStartIdx = startIdx - config.track.turn_smoothness
+            const farEndIdx = endIdx + config.track.turn_smoothness
+            for (let i = farStartIdx; i < farEndIdx; i++) {
+                const curvePoints = curve.getPoints(Math.floor(config.track.centerline_samples / 2))
+
+                let curveIdx = Math.round((curvePoints.length - 1)* ((i - farStartIdx) / (farEndIdx - farStartIdx)))
+
+                sidePoints[i]!.copy(curvePoints[curveIdx]!)
+            }
+        } else {
+            for (let i = startIdx; i < endIdx; i++) {
+                const curvePoints = curve.getPoints(Math.floor(config.track.centerline_samples / 2))
+
+                let min = {val: Infinity, idx: -1}
+                for (let j = 0; j < curvePoints.length; j++) {
+                    const dist = curvePoints[j]!.clone().setY(0).distanceTo(sidePoints[i]!.clone().setY(0))
+
+                    if (dist < min.val) {
+                        min.val = dist
+                        min.idx = j
+                    }
+                }
+
+                if (min.val > 1) {
+                    sidePoints[i]!.copy(curvePoints[min.idx]!)
+                }
+            }
+        }
+
+        if (config.debug.show_turn_lines) debugShowTurnLines(curve, scene)
+    }
+
+    //NOTE - debugShowTurnLines()
+    function debugShowTurnLines(curve: THREE.CatmullRomCurve3, scene: THREE.Scene): void {
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(config.track.centerline_samples))
+        const material = new THREE.LineBasicMaterial({ color: 0x0000ff })
+
+        const line = new THREE.Line(geometry, material)
+        line.name = "Centerline"
+
+        scene.add(line)
     }
 
     //NOTE - helperTurnDistance()
