@@ -264,6 +264,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
 
     return points
 
+    //NOTE - helperCalcAngle()
     function helperCalcAngle(p1: any, p2: any, p3: any): number {
         const [x1, x2, x3] = [p1.r*Math.cos(p1.theta), p2.r*Math.cos(p2.theta), p3.r*Math.cos(p3.theta)]
         const [y1, y2, y3] = [p1.r*Math.sin(p1.theta), p2.r*Math.sin(p2.theta), p3.r*Math.sin(p3.theta)]
@@ -275,6 +276,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
         return Math.min(diff, 2 * Math.PI - diff) * 180 / Math.PI;
     }
 
+    //NOTE - helperOverlap()
     function helperOverlap(points: THREE.Vector3[], samples: number = config.track.centerline_samples, tol: number = 10) {
         const curve = new THREE.CatmullRomCurve3(
             points,
@@ -297,6 +299,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
     }
 }
 
+//NOTE - showDebugSegments()
 function showDebugSegments(segments: Segment[], planeDim: number, scene: THREE.Scene): void {
     const m = new THREE.LineBasicMaterial({ color: 0x0000ff });
 
@@ -360,6 +363,7 @@ function showDebugSegments(segments: Segment[], planeDim: number, scene: THREE.S
     scene.add(line2)
 }
 
+//NOTE - showdebugPoints()
 function showDebugPoints(points: THREE.Vector3[], scene: THREE.Scene): void {
     for (let i = 0; i < points.length; i++) {
         const g = new THREE.BoxGeometry(5, 5, 5)
@@ -391,6 +395,7 @@ function showDebugPoints(points: THREE.Vector3[], scene: THREE.Scene): void {
     }
 }
 
+//NOTE - showDebugPath()
 function showDebugPath(points: THREE.Vector3[], scene: THREE.Scene): void {
 
     const curve = new THREE.CatmullRomCurve3(
@@ -409,11 +414,12 @@ function showDebugPath(points: THREE.Vector3[], scene: THREE.Scene): void {
     scene.add(line)
 }
 
+//NOTE - getModeNodes()
 function getModeNodes(points: Point[], poses: THREE.Vector3[]): ModeNodes {
     
     let current = {idx: 0, mode: points[0]!.mode}
 
-    let modeNodes = {points: [0], modes: [current.mode]}
+    let modeNodes: ModeNodes = {points: [0], turns: [0], modes: [current.mode]}
 
     const curve = new THREE.CatmullRomCurve3(
         poses,
@@ -434,6 +440,7 @@ function getModeNodes(points: Point[], poses: THREE.Vector3[]): ModeNodes {
             
             if (points[current.idx - 1]!.mode != current.mode) {
                 modeNodes.points.push(idx)
+                modeNodes.turns.push(current.idx)
                 modeNodes.modes.push(current.mode)
             }
 

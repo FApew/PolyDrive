@@ -8,6 +8,7 @@ export interface GameConfig {
 
     debug: {
         show_cannon_debugger: boolean
+        
         show_segments: boolean
         show_points: boolean
         show_floating_centerline: boolean
@@ -16,7 +17,9 @@ export interface GameConfig {
         show_pivots: boolean
         show_turn_lines: boolean
         show_road_sections: 2 | 1 | 0
+        
         debug_seed: number
+        lock_seed: boolean
     }
 
     terrain: {
@@ -186,7 +189,7 @@ export type Segment = {weight: number, mode: Mode}
 
 export type Point = {pose: THREE.Vector3, mode: Mode}
 
-export type ModeNodes = {points: number[], modes: Mode[]}
+export type ModeNodes = {points: number[], turns: number[], modes: Mode[]}
 
 export type Pivot = {pivot: THREE.Vector3, idx: number, lr: "left" | "right"}
 

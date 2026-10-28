@@ -26,7 +26,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     10000
 )
-camera.position.set(274, 60, 128);
+camera.position.set(-161, 50, -10);
 camera.lookAt(0, 0, 0)
 
 //NOTE - THREE Renderer Init
@@ -75,7 +75,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-controls.target.set(274, 22, 128)
+controls.target.set(-161, -10, -10)
 controls.update();
 
 //!SECTION
@@ -90,8 +90,8 @@ const sun = new THREE.DirectionalLight(0xffffff, 3);
 sun.position.set(100, 150, 50);
 scene.add(sun);
 
-let seed = config.debug.debug_seed
-//Date.now()
+let seed = config.debug.lock_seed ? config.debug.debug_seed : Date.now()
+
 console.log("Seed:", seed)
 
 genTerrain(seed, scene, world)
@@ -105,7 +105,8 @@ window.addEventListener("keypress", (e) => {
 
         world.clearForces()
 
-        let seed = config.debug.debug_seed //Date.now()
+        let seed = config.debug.lock_seed ? config.debug.debug_seed : Date.now()
+
         console.log("\n")
         console.log("Seed:", seed)
         genTerrain(seed, scene, world)
