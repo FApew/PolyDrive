@@ -72,7 +72,26 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
         0
     )
 
-    const SideLines: SideLines = getSideLines(flatPoints, centerline.poses, centerline.modes, scene)
+    let sectorChangePoints = centerline.modes.points.map((obj, idx) => {
+        const nextIdx = (idx + 1) % centerline.modes.points.length
+
+        let newIdx
+        if (config.track[centerline.modes.modes[idx]!].track_width < config.track[centerline.modes.modes[nextIdx]!].track_width) {
+            newIdx = obj + Math.round((config.track.centerline_samples / centerline.poses.length) / 2)
+        } else {
+            newIdx = obj - Math.round((config.track.centerline_samples / centerline.poses.length) / 2)
+        }
+        return (newIdx + config.track.centerline_samples) % config.track.centerline_samples
+    })
+
+    const sortIdx = sectorChangePoints.map((obj, idx) => idx)
+    sortIdx.sort((a, b) => sectorChangePoints[a]! - sectorChangePoints[b]!)
+
+    sectorChangePoints = sortIdx.map(i => sectorChangePoints[i]!)
+    centerline.modes.modes = sortIdx.map(i => centerline.modes.modes[i]!)
+
+    flatPoints.length--
+    const SideLines: SideLines = getSideLines(flatPoints, centerline.poses, centerline.modes, sectorChangePoints, scene)
 
     if (config.debug.show_centerline) debugShowCenterline(centerlineCurve, scene)
     if (config.debug.show_side_lines) debugShowSidelines(SideLines, scene)
@@ -205,6 +224,7 @@ function getSideLines(
     poses: THREE.Vector3[],
     turns: THREE.Vector3[], 
     modeNodes: ModeNodes, 
+    sectorChangePoints: number[],
     scene: THREE.Scene
 ): SideLines {
 
@@ -228,12 +248,12 @@ function getSideLines(
 
     //NOTE - trackSegments Handler
     poses.forEach((pose, idx) => {
-        let phase = -1
-        for (let i = 0; i < modeNodes.points.length; i++) {
-            if (idx >= modeNodes.points[i]!) phase++
+        let phase = sectorChangePoints.length - 1
+        for (let i = 0; i < sectorChangePoints.length; i++) {
+            if (idx >= sectorChangePoints[i]!) phase++
         }
 
-        const mode = modeNodes.modes[phase]!
+        const mode = modeNodes.modes[phase % sectorChangePoints.length]!
 
         const next = poses[(idx + 1) % poses.length]!;
         const prev = poses[(idx - 1 + poses.length) % poses.length]!;
@@ -266,7 +286,7 @@ function getSideLines(
         const turnDistance = helperTurnDistance(pose, turns)
         if (turnDistance < config.track.turn_size) {
 
-            if (idx > 40 && turnDistance > config.track.inner_turn_min_distance && turnDistance < config.track.inner_turn_max_distance) {
+            if (turnDistance > config.track.inner_turn_min_distance && turnDistance < config.track.inner_turn_max_distance) {
                 nearTurns.inTurn = true
                 nearTurns.l[nearTurns.idx]!.push(leftPoints[idx]!)
                 nearTurns.r[nearTurns.idx]!.push(rightPoints[idx]!)
@@ -281,7 +301,8 @@ function getSideLines(
     if (config.debug.show_road_sections == 1) debugShowRoadLines(leftPoints, rightPoints, turns, poses)
 
     //NOTE - PivotCalculator
-    for (let i = 0; i < nearTurns.l.length - 2; i+=2) {
+    for (let i = 1; i < nearTurns.l.length; i+=2) {
+        const nextIdx = (i + 1) % nearTurns.l.length
 
         if (nearTurns.l[i]!.length < 2) continue
         const leftCurve = new THREE.CatmullRomCurve3(
@@ -299,17 +320,17 @@ function getSideLines(
             0
         )
 
-        if (nearTurns.l[i + 1]!.length < 2) continue
+        if (nearTurns.l[nextIdx]!.length < 2) continue
         const leftPairCurve = new THREE.CatmullRomCurve3(
-            nearTurns.l[i + 1],
+            nearTurns.l[nextIdx],
             false,
             "centripetal",
             0
         )
 
-        if (nearTurns.r[i + 1]!.length < 2) continue
+        if (nearTurns.r[nextIdx]!.length < 2) continue
         const rightPairCurve = new THREE.CatmullRomCurve3(
-            nearTurns.r[i + 1],
+            nearTurns.r[nextIdx],
             false,
             "centripetal",
             0
@@ -321,9 +342,11 @@ function getSideLines(
            //Left Turn
 
             const point = helperOverlap(leftCurve, leftPairCurve)
+            if (point == -1) continue
+
             if (config.debug.show_pivots) debugShowPoint(point, scene, 1, 0x0000ff)
 
-            if (!helperCloseNode(point, turns, modeNodes)) continue
+            //if (!helperCloseNode(point, turns, modeNodes)) continue
 
             nearTurns.pivots.push({pivot: point, idx: i, lr: "left"})
 
@@ -331,24 +354,22 @@ function getSideLines(
             //Right Turn
 
             const point = helperOverlap(rightCurve, rightPairCurve)
+            if (point == -1) continue
+            
             if (config.debug.show_pivots) debugShowPoint(point, scene, 1, 0x0000ff)
 
-            if (!helperCloseNode(point, turns, modeNodes)) continue
+            //if (!helperCloseNode(point, turns, modeNodes)) continue
 
             nearTurns.pivots.push({pivot: point, idx: i, lr: "right"})
         }
     }
 
-    console.log(nearTurns.pivots)
-
     //NOTE - CornerFixer
     nearTurns.pivots.forEach(pivot => {
         if (pivot.lr == "left") {
-            fixCorner(leftPoints, nearTurns.l, pivot, true)
-            fixCorner(rightPoints, nearTurns.r, pivot, false)
+            fixCorner(leftPoints, nearTurns.l, pivot)
         } else {
-            fixCorner(rightPoints, nearTurns.r, pivot, true)
-            fixCorner(leftPoints, nearTurns.l, pivot, false)
+            fixCorner(rightPoints, nearTurns.r, pivot)
         }
     })
 
@@ -357,11 +378,13 @@ function getSideLines(
     return {left: leftPoints, right: rightPoints}
 
     //NOTE - fixCorner()
-    function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot, usePivot: boolean) {
+    function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot) {
+        const nextIdx = (pivot.idx + 1) % nearTurnPoints.length
+
         const firstTurnPoint = nearTurnPoints[pivot.idx]![0]!
         const firstInnerTurnPoint = nearTurnPoints[pivot.idx]![nearTurnPoints[pivot.idx]!.length - 1]!
-        const lastTurnPoint = nearTurnPoints[pivot.idx + 1]![nearTurnPoints[pivot.idx + 1]!.length - 1]!
-        const lastInnerTurnPoint = nearTurnPoints[pivot.idx + 1]![0]!
+        const lastTurnPoint = nearTurnPoints[nextIdx]![nearTurnPoints[nextIdx]!.length - 1]!
+        const lastInnerTurnPoint = nearTurnPoints[nextIdx]![0]!
 
         const avgY = (firstTurnPoint.y + lastTurnPoint.y) / 2
 
@@ -370,10 +393,12 @@ function getSideLines(
         const firstInnerIdx = sidePoints.indexOf(firstInnerTurnPoint)
         const lastInnerIdx = sidePoints.indexOf(lastInnerTurnPoint)
 
-        if (usePivot) for (let i = startIdx; i <= endIdx; i++) {
+        const offset = nextIdx == 0 ? Math.floor(config.track.centerline_samples / 2) : 0
+
+        for (let i = (firstInnerIdx + offset + 1) % sidePoints.length; i <= (lastInnerIdx + offset - 1) % sidePoints.length; i++) {
             
-            sidePoints[i]!.copy(pivot.pivot)
-            sidePoints[i]!.y = avgY
+            sidePoints[(i + offset) % sidePoints.length]!.copy(pivot.pivot)
+            sidePoints[(i + offset) % sidePoints.length]!.y = avgY
         }
 
         helperCurveSide(sidePoints, 
@@ -381,7 +406,7 @@ function getSideLines(
             firstInnerIdx, lastInnerIdx,
             pivot.pivot.clone().setY(avgY), 
             pivot.idx, 
-            nearTurnPoints, usePivot
+            nearTurnPoints
         )
     }
 
@@ -394,11 +419,12 @@ function getSideLines(
         lastTurnPoint: number,
         pivot: THREE.Vector3,
         idx: number,
-        outerTurnPoints: THREE.Vector3[][],
-        usePivot: boolean
+        outerTurnPoints: THREE.Vector3[][]
     ): void {
         let farStartPoints: THREE.Vector3[] = []
         let farEndPoints: THREE.Vector3[] = []
+
+        const nextIdx = (idx + 1) % outerTurnPoints.length
 
         farStartPoints = sidePoints.slice(startIdx - config.track.turn_smoothness, startIdx - 1)
         farStartPoints = farStartPoints.filter((obj, idx) => { return idx % 2 == 0})
@@ -406,21 +432,9 @@ function getSideLines(
         farEndPoints = sidePoints.slice(endIdx + 2, endIdx + config.track.turn_smoothness + 2)
         farEndPoints = farEndPoints.filter((obj, idx) => { return idx % 2 == 0})
 
-        let curvePoints: THREE.Vector3[] = []
-        if (usePivot) {
-            curvePoints = curvePoints.concat(farStartPoints)
-            curvePoints = curvePoints.concat(pivot)
-            curvePoints = curvePoints.concat(farEndPoints)
-        } else {
-            const avgIdx = Math.round(
-                (sidePoints.indexOf(outerTurnPoints[idx]![outerTurnPoints[idx]!.length - 1]!) + 
-                sidePoints.indexOf(outerTurnPoints[idx + 1]![0]!)) / 2
-            )
-
-            curvePoints = curvePoints.concat(outerTurnPoints[idx]!)
-            curvePoints = curvePoints.concat(sidePoints[avgIdx]!)
-            curvePoints = curvePoints.concat(outerTurnPoints[idx + 1]!)
-        }
+        let curvePoints: THREE.Vector3[] = farStartPoints
+        curvePoints = curvePoints.concat(pivot)
+        curvePoints = curvePoints.concat(farEndPoints)
 
         if (config.debug.show_turn_lines) curvePoints.forEach(point => debugShowPoint(point, scene, 0.2, 0x00ff00))
 
@@ -433,61 +447,50 @@ function getSideLines(
             0
         )
 
-        if (usePivot) {
-            const farStartIdx = startIdx - config.track.turn_smoothness
-            const farEndIdx = endIdx + config.track.turn_smoothness + 1
-            for (let i = farStartIdx; i < farEndIdx; i++) {
-                const curvePoints = curve.getPoints(Math.floor(config.track.centerline_samples / 2))
-                const midPoint = {idx: -1, dist: Infinity}
+        const off = nextIdx == 0 ? Math.floor(config.track.centerline_samples / 2) : 0
+        const l = sidePoints.length
 
-                for (let j = 0; j < curvePoints.length; j++) {
-                    const dist = pivot.distanceTo(curvePoints[j]!)
+        const offset = (n: number): number => {
+            return (n + off) % l
+        }
 
-                    if (dist < midPoint.dist) {
-                        midPoint.idx = j
-                        midPoint.dist = dist
-                    }
-                }
+        const farStartIdx = startIdx - config.track.turn_smoothness
+        const farEndIdx = endIdx + config.track.turn_smoothness + 1
 
-                if (i <= firstTurnPoint) {
-                    let curveIdx = Math.round(
-                        midPoint.idx * (1 - Math.pow(
-                            1 - (i - farStartIdx) / (firstTurnPoint - farStartIdx + 1),
-                            2
-                        ))
-                    )
+        for (let i = offset(farStartIdx); i < offset(farEndIdx); i++) {
+            const curvePoints = curve.getPoints(Math.floor(config.track.centerline_samples / 2))
+            const midPoint = {idx: -1, dist: Infinity}
 
-                    sidePoints[i]!.copy(curvePoints[curveIdx]!)
-                } else if (i >= lastTurnPoint) {
-                    let curveIdx = Math.round(
-                        midPoint.idx * (
-                            Math.pow(
-                                (i - lastTurnPoint + 1) / (farEndIdx - lastTurnPoint),
-                                2
-                            ) + 1
-                        )
-                    )
+            for (let j = 0; j < curvePoints.length; j++) {
+                const dist = pivot.distanceTo(curvePoints[j]!)
 
-                    sidePoints[i]!.copy(curvePoints[curveIdx]!)
+                if (dist < midPoint.dist) {
+                    midPoint.idx = j
+                    midPoint.dist = dist
                 }
             }
-        } else {
-            for (let i = startIdx; i < endIdx; i++) {
-                const curvePoints = curve.getPoints(Math.floor(config.track.centerline_samples / 2))
 
-                let min = {val: Infinity, idx: -1}
-                for (let j = 0; j < curvePoints.length; j++) {
-                    const dist = curvePoints[j]!.clone().setY(0).distanceTo(sidePoints[i]!.clone().setY(0))
+            if (i <= offset(firstTurnPoint)) {
+                const num = offset(offset(i) - offset(farStartIdx))
+                const den = offset(firstTurnPoint) - offset(farStartIdx) + 1
 
-                    if (dist < min.val) {
-                        min.val = dist
-                        min.idx = j
-                    }
-                }
+                const curveIdx = Math.round(
+                    midPoint.idx * (1 - Math.pow(1 - num / den, 2))
+                )
 
-                if (min.val > 1) {
-                    sidePoints[i]!.copy(curvePoints[min.idx]!)
-                }
+                sidePoints[offset(i)]!.copy(curvePoints[curveIdx]!)
+
+            } else if (i >= offset(lastTurnPoint)) {
+                const nom = offset(offset(i) - offset(lastTurnPoint) + 1)
+                const den = offset(farEndIdx) - offset(lastTurnPoint)
+
+                let curveIdx = Math.round(
+                    midPoint.idx * (
+                        Math.pow(nom / den, 2) + 1
+                    )
+                )
+
+                sidePoints[offset(i)]!.copy(curvePoints[curveIdx]!)
             }
         }
 
@@ -598,6 +601,8 @@ function getSideLines(
         avgT1.normalize()
         avgT2.normalize()
 
+        if (avgT1.angleTo(avgT2) / Math.PI * 180 < 15) return -1
+
         return getIntersection(avgP1, avgP2, avgT1, avgT2)
 
         //NOTE - getIntersection()
@@ -629,7 +634,7 @@ function getSideLines(
             if (distance < config.track.turn_size) {
                 m = new THREE.LineBasicMaterial({ color: 0xff00ff })
 
-                if (i > 40 && distance > config.track.inner_turn_min_distance && distance < config.track.inner_turn_max_distance) {
+                if (distance > config.track.inner_turn_min_distance && distance < config.track.inner_turn_max_distance) {
                     m = new THREE.LineBasicMaterial({ color: 0x00ffff })
                 }
 

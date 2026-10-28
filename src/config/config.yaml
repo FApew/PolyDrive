@@ -20,9 +20,9 @@ terrain:
 track:
   centerline_samples: 1000
 
-  turn_size: 10
-  inner_turn_max_distance: 10
-  inner_turn_min_distance: 2
+  turn_size: 15
+  inner_turn_max_distance: 15
+  inner_turn_min_distance: 4
   turn_smoothness: 18
 
   min_segments: 8
@@ -41,7 +41,7 @@ track:
   casual: 
     segment_weight: 1
 
-    track_width: 9
+    track_width: 7
 
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.3
@@ -52,7 +52,7 @@ track:
     min_anchor_distance: 20
     max_anchor_distance: 400
 
-    min_curve_angle: 45
+    min_curve_angle: 50
     max_curve_angle: 160
 
   f1: 
@@ -69,7 +69,7 @@ track:
     min_anchor_distance: 20
     max_anchor_distance: 400
 
-    min_curve_angle: 60
+    min_curve_angle: 65
     max_curve_angle: 160
 
   rally: 
@@ -103,7 +103,7 @@ track:
     min_anchor_distance: 20
     max_anchor_distance: 400
 
-    min_curve_angle: 60
+    min_curve_angle: 65
     max_curve_angle: 160
 
   hillclimb: 
@@ -137,13 +137,13 @@ track:
     min_anchor_distance: 20
     max_anchor_distance: 200
 
-    min_curve_angle: 60
+    min_curve_angle: 70
     max_curve_angle: 160
 
   karting: 
     segment_weight: 1
 
-    track_width: 8
+    track_width: 6
 
     max_anchor_per_segment: 2
     multiple_anchors_chance: 0.8
@@ -154,13 +154,13 @@ track:
     min_anchor_distance: 20
     max_anchor_distance: 200
 
-    min_curve_angle: 40
+    min_curve_angle: 50
     max_curve_angle: 100
 
 debug:
   show_cannon_debugger: false
 
-  show_segments: true
+  show_segments: false
 
   show_points: false
 
@@ -176,16 +176,11 @@ debug:
 
   show_road_sections: 2
 
-  #1793180506910
-  #1793180654706
-  #1793180821432
-  #1793180876907
-  #1793180949381
-  #1793181050579
-  #1793181097019
+  #1793219043035
+  #1793220474023
 
   #fanculopista 1793180845909
-  debug_seed: 1793181097019
+  debug_seed: 1793220474023
   lock_seed: false
 
 #1793103021044

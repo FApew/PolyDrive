@@ -26,7 +26,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     10000
 )
-camera.position.set(-161, 50, -10);
+camera.position.set(0, 800, 0);
 camera.lookAt(0, 0, 0)
 
 //NOTE - THREE Renderer Init
@@ -75,7 +75,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-controls.target.set(-161, -10, -10)
+controls.target.set(0, 0, 0)
 controls.update();
 
 //!SECTION
