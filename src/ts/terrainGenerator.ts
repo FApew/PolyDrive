@@ -6,18 +6,19 @@ import alea from "alea"
 import { addDetailedPlaneBody } from "./physicsHandler"
 import { genTrackLine } from "./trackGenerator";
 
-//NOTE - Config Init
+//note - Config Init
 import YAML from "yaml"
 import type { GameConfig, Mode, ModeNodes, Pivot, nearTurn, SideLines } from "./types"
 import configTxt from "../config/config.yaml?raw"
-import { color, tan } from "three/tsl"
 const config: GameConfig = YAML.parse(configTxt)
 
 const modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
 
-//NOTE - genTerrain()
+//FUNCTION - genTerrain()
 export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World) {
-    const random = alea(seed)
+    const random = alea(seed) //Define Random Seeded Function
+
+    //note - Plane Dimension Calc
     const planeDim = Math.round(random() * (config.terrain.max_size - config.terrain.min_size) + config.terrain.min_size)
 
     //Noise Functions
@@ -30,7 +31,7 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
 
     //Terrain material & Mesh
     const material = new THREE.MeshStandardMaterial({
-        color: 0x141414,//0x8fc005,
+        color: 0x8fc005,
         vertexColors: false,
         flatShading: true,
         roughness: 1,
@@ -48,7 +49,6 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
         "centripetal",
         0
     )
-
     const flatPoints = flatCenterlineCurve.getPoints(config.track.centerline_samples)
 
     //Track Length Calculation
@@ -61,7 +61,6 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
         point.setY(getHeight(point.x, -point.z, seed, noise, maskNoiseFun, 0) + 3)
     })
     console.log("Track Length:", parseFloat(sum.toFixed(2)), "m")
-
     console.log("Nodes:", centerline.modes.points)
 
     //True Centerline
@@ -72,11 +71,20 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
         0
     )
 
+    //Shift the Sectors
+    const sectorModes = [ ...centerline.modes.modes]
+    sectorModes.unshift(sectorModes.pop()!)
+    
+    //Shift the sector change points to be on a straight
     let sectorChangePoints = centerline.modes.points.map((obj, idx) => {
         const nextIdx = (idx + 1) % centerline.modes.points.length
 
+        const currentMode = sectorModes[idx]!
+        const nextMode = sectorModes[nextIdx]!
+
         let newIdx
-        if (config.track[centerline.modes.modes[idx]!].track_width < config.track[centerline.modes.modes[nextIdx]!].track_width) {
+        console.log(currentMode, nextMode, obj)
+        if (config.track[currentMode].track_width < config.track[nextMode].track_width) {
             newIdx = obj + Math.round((config.track.centerline_samples / centerline.poses.length) / 2)
         } else {
             newIdx = obj - Math.round((config.track.centerline_samples / centerline.poses.length) / 2)
@@ -84,13 +92,16 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
         return (newIdx + config.track.centerline_samples) % config.track.centerline_samples
     })
 
+    console.log(sectorChangePoints)
+
+    //Sort them if required
     const sortIdx = sectorChangePoints.map((obj, idx) => idx)
     sortIdx.sort((a, b) => sectorChangePoints[a]! - sectorChangePoints[b]!)
 
     sectorChangePoints = sortIdx.map(i => sectorChangePoints[i]!)
     centerline.modes.modes = sortIdx.map(i => centerline.modes.modes[i]!)
 
-    flatPoints.length--
+    flatPoints.length-- //Remove last point of the curve to close it properly
     const SideLines: SideLines = getSideLines(flatPoints, centerline.poses, centerline.modes, sectorChangePoints, scene)
 
     if (config.debug.show_centerline) debugShowCenterline(centerlineCurve, scene)
@@ -98,8 +109,9 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
     
     addDetailedPlaneBody(terrainMesh, scene, world)
 } 
+//!FUNCTION
 
-//NOTE - genGeometry()
+//fun - genGeometry()
 function genGeometry(seed: number, planeDim: number, noise: any, maskNoiseFun: any): any {
 
     //Generate THREE Geometry
@@ -145,7 +157,7 @@ function genGeometry(seed: number, planeDim: number, noise: any, maskNoiseFun: a
     return geometry
 }
 
-//NOTE - getHeight()
+//fun - getHeight()
 function getHeight(x: number, y: number, seed: number, noise: any, maskNoiseFun: any, topNoise: number): number {
 
     const mainNoise = noise(
@@ -176,50 +188,7 @@ function getHeight(x: number, y: number, seed: number, noise: any, maskNoiseFun:
     return (mainNoise * topNoise + /*mountainsNoise * mountainsMask*/ backgroundNoise)
 }
 
-//NOTE - debugShowCenterline()
-function debugShowCenterline(curve: THREE.CatmullRomCurve3, scene: THREE.Scene): void {
-
-    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(config.track.centerline_samples))
-    const material = new THREE.LineBasicMaterial({ color: 0xffffff })
-
-    const line = new THREE.Line(geometry, material)
-    line.name = "Centerline"
-
-    scene.add(line)
-}
-
-//NOTE - debugShowSidelines()
-function debugShowSidelines(sidelines: SideLines, scene: THREE.Scene): void {
-
-    const leftCurve = new THREE.CatmullRomCurve3(
-        sidelines.left,
-        true,
-        "centripetal",
-        0
-    )
-
-    const rightCurve = new THREE.CatmullRomCurve3(
-        sidelines.right,
-        true,
-        "centripetal",
-        0
-    )
-
-    const g1 = new THREE.BufferGeometry().setFromPoints(leftCurve.getPoints(config.track.centerline_samples))
-    const g2 = new THREE.BufferGeometry().setFromPoints(rightCurve.getPoints(config.track.centerline_samples))
-    const material = new THREE.LineBasicMaterial({ color: 0xffffff })
-
-    const line1 = new THREE.Line(g1, material)
-    line1.name = "SideLineLeft"
-
-    const line2 = new THREE.Line(g2, material)
-    line1.name = "SideLineRight"
-
-    scene.add(line1)
-    scene.add(line2)
-}
-
-//SECTION - getSideLines()
+//FUNCTION - getSideLines()
 function getSideLines(
     poses: THREE.Vector3[],
     turns: THREE.Vector3[], 
@@ -246,7 +215,7 @@ function getSideLines(
 
     let prevInTurn = false
 
-    //NOTE - trackSegments Handler
+    //note - trackSegments Handler
     poses.forEach((pose, idx) => {
         let phase = sectorChangePoints.length - 1
         for (let i = 0; i < sectorChangePoints.length; i++) {
@@ -300,7 +269,7 @@ function getSideLines(
 
     if (config.debug.show_road_sections == 1) debugShowRoadLines(leftPoints, rightPoints, turns, poses)
 
-    //NOTE - PivotCalculator
+    //note - PivotCalculator
     for (let i = 1; i < nearTurns.l.length; i+=2) {
         const nextIdx = (i + 1) % nearTurns.l.length
 
@@ -364,7 +333,7 @@ function getSideLines(
         }
     }
 
-    //NOTE - CornerFixer
+    //note - CornerFixer
     nearTurns.pivots.forEach(pivot => {
         if (pivot.lr == "left") {
             fixCorner(leftPoints, nearTurns.l, pivot)
@@ -377,7 +346,7 @@ function getSideLines(
 
     return {left: leftPoints, right: rightPoints}
 
-    //NOTE - fixCorner()
+    //fun - fixCorner()
     function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot) {
         const nextIdx = (pivot.idx + 1) % nearTurnPoints.length
 
@@ -410,7 +379,7 @@ function getSideLines(
         )
     }
 
-    //NOTE - helperLerp()
+    //fun - helperLerp()
     function helperCurveSide(
         sidePoints: THREE.Vector3[], 
         startIdx: number, 
@@ -497,7 +466,7 @@ function getSideLines(
         if (config.debug.show_turn_lines) debugShowTurnLines(curve, scene)
     }
 
-    //NOTE - debugShowTurnLines()
+    //fun - debugShowTurnLines()
     function debugShowTurnLines(curve: THREE.CatmullRomCurve3, scene: THREE.Scene): void {
 
         const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(config.track.centerline_samples))
@@ -509,7 +478,7 @@ function getSideLines(
         scene.add(line)
     }
 
-    //NOTE - helperTurnDistance()
+    //fun - helperTurnDistance()
     function helperTurnDistance(pose: THREE.Vector3, turns: THREE.Vector3[]): number {
 
         let min = Infinity
@@ -523,24 +492,7 @@ function getSideLines(
         return min
     }
 
-    //NOTE - helperCloseNode()
-    function helperCloseNode(point: THREE.Vector3, turns: THREE.Vector3[], modeNodes: ModeNodes) {
-        let min = {val: Infinity, idx: -1}
-        for (let i = 0; i < turns.length; i++) {
-            const flatPose = new THREE.Vector3(point.x, 0, point.z)
-            const flatTurn = new THREE.Vector3(turns[i]!.x, 0, turns[i]!.z)
-
-            const dist = flatPose.distanceTo(flatTurn)
-            if (dist < min.val) {
-                min.val = dist
-                min.idx = i
-            }
-        }
-
-        return modeNodes.turns.indexOf(min.idx) == -1
-    }
-
-    //NOTE - helperOverlap()
+    //fun - helperOverlap()
     function helperOverlap(curve1: THREE.CatmullRomCurve3, curve2: THREE.CatmullRomCurve3): any {
         let p1 = curve1.getPoints(config.track.centerline_samples / 100)
         let p2 = curve2.getPoints(config.track.centerline_samples / 100)
@@ -605,7 +557,7 @@ function getSideLines(
 
         return getIntersection(avgP1, avgP2, avgT1, avgT2)
 
-        //NOTE - getIntersection()
+        //fun - getIntersection()
         function getIntersection(p1: THREE.Vector3, p2: THREE.Vector3, v1: THREE.Vector3, v2: THREE.Vector3): THREE.Vector3 {
             //Solve p1 + X*v1 = p2 + Y*v2
             const denominator = v1.x * v2.z - v1.z * v2.x
@@ -623,7 +575,7 @@ function getSideLines(
         }
     }
 
-    //NOTE - debugShowRoadLines()
+    //fun - debugShowRoadLines()
     function debugShowRoadLines(leftPoints: THREE.Vector3[], rightPoints: THREE.Vector3[], turns: THREE.Vector3[], poses: THREE.Vector3[]):void {
         for (let i = 0; i < leftPoints.length; i++) {
             const g = new THREE.BufferGeometry().setFromPoints([leftPoints[i]!, rightPoints[i]!])
@@ -648,24 +600,24 @@ function getSideLines(
         }
     }
 
-    //NOTE - debugShowPoint()
+    //fun - debugShowPoint()
     function debugShowPoint(point: THREE.Vector3, scene: THREE.Scene, size: number, color: number): void {
         const g1 = new THREE.BoxGeometry(size, size, size)
         const m1 = new THREE.MeshBasicMaterial({ color: color })
 
-        const g2 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(point.x, -25, point.z), new THREE.Vector3(point.x, 25, point.z)])
+        const g2 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(point.x, point.y + 10, point.z), new THREE.Vector3(point.x, point.y, point.z)])
         const m2 = new THREE.LineBasicMaterial({ color: color })
 
         const cube = new THREE.Mesh(g1, m1)
         const line = new THREE.Line(g2, m2)
         cube.position.copy(point)
-        cube.position.y = 25
+        cube.position.y = point.y + 10
 
         scene.add(cube)
         scene.add(line)
     }
 
-    //NOTE - debugShowTurnTangets()
+    //fun - debugShowTurnTangets()
     function debugShowTurnTangets(lC: THREE.CatmullRomCurve3, lpC: THREE.CatmullRomCurve3, rC: THREE.CatmullRomCurve3, rpC: THREE.CatmullRomCurve3) {
         const g1 = new THREE.BufferGeometry().setFromPoints(lC.getPoints(config.track.centerline_samples / 20))
         const g2 = new THREE.BufferGeometry().setFromPoints(rC.getPoints(config.track.centerline_samples / 20))
@@ -685,4 +637,47 @@ function getSideLines(
         scene.add(pr)
     }
 }
-//!SECTION
+//!FUNCTION
+
+//fun - debugShowCenterline()
+function debugShowCenterline(curve: THREE.CatmullRomCurve3, scene: THREE.Scene): void {
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(config.track.centerline_samples))
+    const material = new THREE.LineBasicMaterial({ color: 0xffffff })
+
+    const line = new THREE.Line(geometry, material)
+    line.name = "Centerline"
+
+    scene.add(line)
+}
+
+//fun - debugShowSidelines()
+function debugShowSidelines(sidelines: SideLines, scene: THREE.Scene): void {
+
+    const leftCurve = new THREE.CatmullRomCurve3(
+        sidelines.left,
+        true,
+        "centripetal",
+        0
+    )
+
+    const rightCurve = new THREE.CatmullRomCurve3(
+        sidelines.right,
+        true,
+        "centripetal",
+        0
+    )
+
+    const g1 = new THREE.BufferGeometry().setFromPoints(leftCurve.getPoints(config.track.centerline_samples))
+    const g2 = new THREE.BufferGeometry().setFromPoints(rightCurve.getPoints(config.track.centerline_samples))
+    const material = new THREE.LineBasicMaterial({ color: 0xffffff })
+
+    const line1 = new THREE.Line(g1, material)
+    line1.name = "SideLineLeft"
+
+    const line2 = new THREE.Line(g2, material)
+    line1.name = "SideLineRight"
+
+    scene.add(line1)
+    scene.add(line2)
+}

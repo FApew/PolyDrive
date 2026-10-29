@@ -20,9 +20,9 @@ terrain:
 track:
   centerline_samples: 1000
 
-  turn_size: 15
-  inner_turn_max_distance: 15
-  inner_turn_min_distance: 4
+  turn_size: 8
+  inner_turn_max_distance: 8
+  inner_turn_min_distance: 3
   turn_smoothness: 18
 
   min_segments: 8
@@ -86,7 +86,7 @@ track:
     min_anchor_distance: 20
     max_anchor_distance: 400
 
-    min_curve_angle: 30
+    min_curve_angle: 40
     max_curve_angle: 100
 
   touring: 
@@ -170,17 +170,18 @@ debug:
 
   show_side_lines: true
   
-  show_pivots: false
+  show_pivots: true
 
-  show_turn_lines: false
+  show_turn_lines: true
 
   show_road_sections: 2
 
   #1793219043035
   #1793220474023
 
-  #fanculopista 1793180845909
-  debug_seed: 1793220474023
+  #all rally 1793266747994
+  #manina 1793267393471
+  debug_seed: 0
   lock_seed: false
 
 #1793103021044
