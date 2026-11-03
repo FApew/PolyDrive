@@ -8,9 +8,9 @@ const __dirname = path.dirname(__filename)
 const PORT = process.env.PORT || 3500
 
 const app = express()
-app.use("/public", express.static(path.join(__dirname, "public")))
+app.use("/src", express.static(path.join(__dirname, "src")))
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "/public/index.html"))
+  res.sendFile(path.join(__dirname, "./index.html"))
 })
 
 app.set("trust proxy", true)
