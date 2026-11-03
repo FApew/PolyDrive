@@ -15,7 +15,10 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:client": "vite build client --outDir ../dist",
+    "build:server": "tsc -p server/tsconfig.json",
+    "build": "npm run build:client && npm run build:server",
+    "start": "node server-dist/index.js"
   },
   "dependencies": {
     "alea": "^1.0.1",
