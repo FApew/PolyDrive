@@ -9,11 +9,7 @@ import { updatePhysics } from "./physicsHandler"
 import { genTerrain } from "./terrainGenerator"
 
 //SECTION - Inizialization
-//NOTE - Config Init
-import YAML from "yaml"
-import type { GameConfig } from "./types"
-import configTxt from "../config/config.yaml?raw"
-const config: GameConfig = YAML.parse(configTxt)
+import { config } from "./YAMLConfigs"
 
 //NOTE - THREE Scene Init
 const scene = new THREE.Scene()
@@ -26,8 +22,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     10000
 )
-camera.position.set(0, 800, 0);
-camera.lookAt(0, 0, 0)
+camera.position.set(config.debug.camera.x, config.debug.camera.y, config.debug.camera.z);
 
 //NOTE - THREE Renderer Init
 const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -75,7 +70,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-controls.target.set(0, 0, 0)
+controls.target.set(config.debug.camera.tx, config.debug.camera.ty, config.debug.camera.tz)
 controls.update();
 
 //!SECTION
@@ -115,6 +110,12 @@ window.addEventListener("keypress", (e) => {
 
         sun.position.set(100, 150, 50);
         scene.add(sun);
+    } else if (e.key == "c") {
+        console.log("Camera Debug Settings")
+        console.log(
+            "x:", camera.position.x, "\ny:", camera.position.y, "\nz:", camera.position.z,
+            "\ntx:", controls.target.x, "\nty:", controls.target.y, "\ntz:", controls.target.z
+        )
     }
 })
 

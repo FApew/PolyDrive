@@ -1,12 +1,9 @@
 import * as THREE from "three"
-import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import alea from "alea"
+import type { Mode, Segment, Point, ModeNodes } from "./types"
 
-//note - Config Init
-import YAML from "yaml"
-import type { GameConfig, Mode, Segment, Point, ModeNodes } from "./types"
-import configTxt from "../config/config.yaml?raw"
-const config: GameConfig = YAML.parse(configTxt)
+import { config } from "./YAMLConfigs"
 
 const modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
 
@@ -167,6 +164,10 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
                 (random() * Math.abs(maxTheta - minTheta)) + minTheta
             )
 
+            //Use previous sector angle constraint for the first point of the new sector
+            let angleCheckMode = currentMode
+            if (j == 0) {angleCheckMode = segments[(i - 1 + segments.length) % segments.length]!.mode}
+
             //note - Radius calculation loop
             let r, angle = -1, dist = -1, o = 0
             do {
@@ -195,8 +196,8 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
                         )
                     ) || (
                         angle != -1 && ( //Angle based Checks
-                            angle < config.track[currentMode].min_curve_angle || 
-                            angle > config.track[currentMode].max_curve_angle
+                            angle < config.track[angleCheckMode].min_curve_angle || 
+                            angle > config.track[angleCheckMode].max_curve_angle
                         )
                     )
                 ) && ++o < config.track.max_tries

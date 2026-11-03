@@ -17,6 +17,10 @@ terrain:
   mountains_amplitude: 35
   mountains_chance: 0.004
 
+road:
+  elevation: 2.3
+  thickness: 3.2
+
 track:
   centerline_samples: 1000
 
@@ -166,22 +170,31 @@ debug:
 
   show_floating_centerline: false
 
-  show_centerline: true
+  show_centerline: false
 
-  show_side_lines: true
+  show_side_lines: false
   
-  show_pivots: true
+  show_pivots: false
 
-  show_turn_lines: true
+  show_turn_lines: false
 
-  show_road_sections: 2
+  show_road_sections: 0
 
-  #1793219043035
-  #1793220474023
+  camera: #DEFAULT x:0 y:800 z:0, tx:0 ty:0 tz:0
+    x: 0
+    y: 800
+    z: 0
+    tx: 0
+    ty: 0
+    tz: 0
 
-  #all rally 1793266747994
+  #fantasma 1793348070504
   #manina 1793267393471
-  debug_seed: 0
+  #cannone 1793725282113
+  #rally f1 1793465885320
+  #fanculopista 1793725529202
+  #testa 1793725554231
+  debug_seed: 1793725676492
   lock_seed: false
 
 #1793103021044

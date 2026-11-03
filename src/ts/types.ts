@@ -17,6 +17,15 @@ export interface GameConfig {
         show_pivots: boolean
         show_turn_lines: boolean
         show_road_sections: 2 | 1 | 0
+
+        camera : {
+            x: number
+            y: number
+            z: number
+            tx: number
+            ty: number
+            tz: number
+        }
         
         debug_seed: number
         lock_seed: boolean
@@ -33,6 +42,11 @@ export interface GameConfig {
         mountains_frequency: number
         mountains_amplitude: number
         mountains_chance: number
+    }
+
+    road: {
+        elevation: number
+        thickness: number
     }
 
     track: {
