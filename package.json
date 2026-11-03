@@ -15,10 +15,8 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "build:client": "vite build --outDir dist",
-    "build:server": "tsc -p tsconfig.server.json",
-    "build": "npm run build:client && npm run build:server",
-    "start": "node server-dist/index.js"
+    "build": "vite build",
+    "start": "node server.js"
   },
   "dependencies": {
     "alea": "^1.0.1",
