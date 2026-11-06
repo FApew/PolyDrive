@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import * as CANNON from "cannon-es"
+import { RAPIER, createStaticTrimesh } from "./physics"
 import { createNoise2D } from "simplex-noise"
 import alea from "alea"
 
@@ -8,13 +8,23 @@ import type { SideLines } from "./types"
 import { config } from "./YAMLConfigs"
 
 //FUNCTION - genRoad()
-export function genRoad(seed: number, scene: THREE.Scene, world: CANNON.World, sideLines: SideLines) {
+export function genRoad(
+    seed: number, 
+    scene: THREE.Scene,
+    world: RAPIER.World,
+    centerline: THREE.Vector3[],
+    turns: THREE.Vector3[],
+    sectorChange: number[],
+    sideLines: SideLines
+): number {
 
     const roadMesh = buildRoadMesh(sideLines)
     scene.add(roadMesh);
+    createStaticTrimesh(roadMesh, world)
+    
 
-    const roadBody = buildRoadBody(roadMesh);
-    world.addBody(roadBody)
+    const finishlinePoint = getFinishlinePoint(centerline, turns, sectorChange)
+    return finishlinePoint
 }
 
 //fun - buildRoadMesh()
@@ -62,51 +72,81 @@ function buildRoadMesh(side: SideLines, tileLength = 10, thickness = config.road
         }
         for (let i = 0; i < n; i++) {
             const a = base + i * 2, b = a + 1, c = a + 2, d = a + 3
-            indices.push(a, b, c,  b, d, c)
+            indices.push(a, b, c, b, d, c)
         }
     }
 }
 
-//fun buildRoadObj()
-function buildRoadBody(mesh: THREE.Mesh): CANNON.Body {
+//FUNCTION - getFinishLinePoint()
+function getFinishlinePoint(
+    centerline: THREE.Vector3[],
+    turns: THREE.Vector3[],
+    sectorChange: number[]
+): number {
+    
+    let bestIdx = 0
+    let firstPose: number
+    let lastPose: number
+    
+    let check: boolean, forbiddenIdxs: number[] = []
+    do {
+        let tmp = -Infinity
+        for (let i = 0; i < turns.length; i++) {
+            const nextIdx = (i + 1) % turns.length
 
-    const geometry = mesh.geometry
-    const position = geometry.getAttribute("position")
-    const index = geometry.getIndex()
+            const dist = turns[i]!.distanceTo(turns[nextIdx]!)
 
-    if (!index) {
-        throw new Error("Road geometry has no index")
+            console.log(i, nextIdx, dist)
+
+            if (dist > tmp && forbiddenIdxs.indexOf(i) == -1) {
+                tmp = dist
+                bestIdx = i
+            }
+        }
+
+        const nextBestIdx = (bestIdx + 1) % turns.length
+
+        firstPose = getClosestCurvePoint(centerline, turns[bestIdx]!)
+        lastPose = getClosestCurvePoint(centerline, turns[nextBestIdx]!)
+
+        const off = bestIdx == 0 ? Math.floor(config.track.centerline_samples / 2) : 0
+        const offset = (n: number): number => {
+            return (n + off) % config.track.centerline_samples
+        }
+
+        check = false
+        sectorChange.forEach((pose: number) => {
+            if (offset(pose) > offset(firstPose) && offset(pose) < offset(lastPose)) {
+                check = true
+                forbiddenIdxs.push(bestIdx)
+            }
+        })
+    } while (check)
+
+    console.log(firstPose, lastPose)
+
+    console.log("Best: ", bestIdx)
+
+    const off = bestIdx == 0 ? Math.floor(config.track.centerline_samples / 2) : 0
+    const offset = (n: number): number => {
+        return (n + off) % config.track.centerline_samples
     }
 
-    const vertices = Array.from(position.array as ArrayLike<number>)
-    const indices = Array.from(index.array as ArrayLike<number>)
+    return offset(Math.floor((offset(lastPose) - offset(firstPose)) * .7 + offset(firstPose)))
 
-    const shape = new CANNON.Trimesh(vertices, indices)
+    //fun getClosestCurvePoint()
+    function getClosestCurvePoint(curve: THREE.Vector3[], point: THREE.Vector3): number {
+        let idx = 0, tmp = Infinity
 
-    const body = new CANNON.Body({
-        mass: 0,
-        type: CANNON.Body.STATIC,
-        shape
-    })
+        for (let i = 0; i < curve.length; i++) {
+            const dist = point.distanceTo(curve[i]!)
 
-    // Apply the mesh's world transform to the collision body.
-    mesh.updateMatrixWorld(true)
+            if (dist < tmp) {
+                tmp = dist
+                idx = i
+            }
+        }
 
-    const position3 = new THREE.Vector3()
-    const quaternion = new THREE.Quaternion()
-    const scale = new THREE.Vector3()
-
-    mesh.matrixWorld.decompose(position3, quaternion, scale)
-
-    body.position.set(position3.x, position3.y, position3.z)
-    body.quaternion.set(
-        quaternion.x,
-        quaternion.y,
-        quaternion.z,
-        quaternion.w
-    )
-
-    body.updateAABB()
-
-    return body
+        return idx
+    }
 }

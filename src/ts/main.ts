@@ -1,15 +1,15 @@
 import * as THREE from "three"
-import * as CANNON from "cannon-es"
+import { RAPIER, createWorld, RapierDebugger, updatePhysics, createStaticTrimesh, createDynamicConvex, clearSyncList } from "./physics"
 import Stats from "stats.js"
-import CannonDebugger from "cannon-es-debugger"
-import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js";
+import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js"
+import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { updatePhysics } from "./physicsHandler"
+import type { TrackContext } from "./types"
 import { genTerrain } from "./terrainGenerator"
 
 //SECTION - Inizialization
 import { config } from "./YAMLConfigs"
+await RAPIER.init()
 
 //NOTE - THREE Scene Init
 const scene = new THREE.Scene()
@@ -47,11 +47,9 @@ const stats = new Stats()
 stats.showPanel(0)
 document.body.appendChild(stats.dom)
 
-//NOTE - CANNON World Init
-const world = new CANNON.World()
-
-world.gravity.set(0, -9.81, 0)
-world.allowSleep = true
+//NOTE - RAPIER World Init
+let world: RAPIER.World
+const physicsDebug = new RapierDebugger()
 
 //NOTE - Resize Handling
 window.addEventListener("resize", () => {
@@ -60,9 +58,6 @@ window.addEventListener("resize", () => {
 
     renderer.setSize(window.innerWidth, window.innerHeight)
 })
-
-//NOTE - CannonDebugger Init
-const cannonDebugger = CannonDebugger(scene, world)
 
 //NOTE - OrbitControldebugg
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -74,42 +69,11 @@ controls.target.set(config.debug.camera.tx, config.debug.camera.ty, config.debug
 controls.update();
 
 //!SECTION
-
-function update() {
-    
-    updatePhysics(world, scene)
-}
-
-const sun = new THREE.DirectionalLight(0xffffff, 3);
-
-sun.position.set(100, 150, 50);
-scene.add(sun);
-
-let seed = config.debug.lock_seed ? config.debug.debug_seed : Date.now()
-
-console.log("Seed:", seed)
-
-genTerrain(seed, scene, world)
+newWorld()
 
 window.addEventListener("keypress", (e) => {
     if (e.key == "t") {
-        scene.clear()
-
-        world.bodies.slice().forEach(body => world.removeBody(body))
-        world.constraints.slice().forEach(constraint => world.removeConstraint(constraint))
-
-        world.clearForces()
-
-        let seed = config.debug.lock_seed ? config.debug.debug_seed : Date.now()
-
-        console.log("\n")
-        console.log("Seed:", seed)
-        genTerrain(seed, scene, world)
-
-        const sun = new THREE.DirectionalLight(0xffffff, 3);
-
-        sun.position.set(100, 150, 50);
-        scene.add(sun);
+        newWorld()
     } else if (e.key == "c") {
         console.log("Camera Debug Settings")
         console.log(
@@ -119,27 +83,63 @@ window.addEventListener("keypress", (e) => {
     }
 })
 
-const geometry = new THREE.BoxGeometry(1.85, 1.64, 4.7);
-const material = new THREE.MeshStandardMaterial({
-    color: 0xa17fff
-});
+//fun newWorld()
+function newWorld() {
+    console.log("\n")
 
-const cube = new THREE.Mesh(geometry, material);
-cube.position.set(0, 5, 0);
-scene.add(cube);
+    scene.clear()
+    scene.add(physicsDebug.mesh)
 
-// Create a matching Cannon physics body
-const cubeBody = new CANNON.Body({
-    mass: 1,
-    shape: new CANNON.Box(new CANNON.Vec3(1.85 / 2, 1.64 / 2, 4.7 / 2))
-});
+    world?.free()
+    clearSyncList()
+    world = createWorld()
 
-cubeBody.position.set(
-    cube.position.x,
-    cube.position.y,
-    cube.position.z
-);
-world.addBody(cubeBody)
+    const seed = config.debug.lock_seed ? config.debug.debug_seed : Date.now()
+    console.log("Seed:", seed)
+    
+    const trackContext: TrackContext = genTerrain(seed, scene, world)
+    console.log(trackContext.finishlinePoint)
+
+    const finishlinePose = trackContext.centerlinePoints[trackContext.finishlinePoint]!
+
+    const sun = new THREE.DirectionalLight(0xffffff, 3)
+    sun.position.set(100, 150, 50)
+    scene.add(sun)
+
+    //const geometry = new THREE.BoxGeometry(1.85, 1.64, 4.7)
+    const geometry = new THREE.SphereGeometry()
+    const material = new THREE.MeshStandardMaterial({
+        color: 0xa17fff
+    })
+
+    const cube = new THREE.Mesh(geometry, material)
+    cube.position.set(finishlinePose.x, finishlinePose.y + 1.64, finishlinePose.z)
+
+    const tangent = getTangent(trackContext)
+
+    debugDrawVect(tangent, new THREE.Vector3(finishlinePose.x, finishlinePose.y + 1.64, finishlinePose.z))
+
+    console.log(tangent)
+
+    cube.lookAt(cube.position.clone().add(tangent))
+    scene.add(cube)
+
+    // Create a matching Cannon physics body
+    createDynamicConvex(cube, world, 20)
+    
+
+    //fun getTangent()
+    function getTangent(trackContext: TrackContext): THREE.Vector3 {
+        const l = trackContext.centerlinePoints.length
+        const next = trackContext.centerlinePoints[(trackContext.finishlinePoint + 1) % l]!;
+        const prev = trackContext.centerlinePoints[(trackContext.finishlinePoint - 1 + l) % l]!;
+
+
+        const tangent = next.clone().sub(prev).normalize();
+        return tangent
+    }
+}
+
 
 //NOTE - gameLoop() Funciton
 let lastFrameTime = 0, accumulator = 0, targetFps = config.game.default_fps
@@ -162,14 +162,13 @@ function gameLoop(currentFrame: number): void {
     stats.begin()
 
     while (accumulator >= 1 / config.game.physics_fps) {
-        
-        world.step(1 / config.game.physics_fps)
+        world.step()
+        if (config.debug.show_cannon_debugger) physicsDebug.update(world)
         accumulator -= 1 / config.game.physics_fps
     }
 
-    update()
+    updatePhysics()
 
-    if (config.debug.show_cannon_debugger) cannonDebugger.update();
     controls.update();
     renderer.render(scene, camera)
     //labelRenderer.render(scene, camera);
@@ -178,3 +177,12 @@ function gameLoop(currentFrame: number): void {
 }
 
 requestAnimationFrame(gameLoop)
+
+//debugFun - debugDrawVect()
+function debugDrawVect(v: THREE.Vector3, p: THREE.Vector3): void {
+    const geometry = new THREE.BufferGeometry().setFromPoints([p, p.clone().add(v.clone().multiplyScalar(10))])
+    const material = new THREE.LineBasicMaterial({color: 0x00ff00})
+
+    const line = new THREE.Line(geometry, material)
+    scene.add(line)
+}

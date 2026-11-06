@@ -181,12 +181,12 @@ debug:
   show_road_sections: 0
 
   camera: #DEFAULT x:0 y:800 z:0, tx:0 ty:0 tz:0
-    x: 0
-    y: 800
-    z: 0
-    tx: 0
-    ty: 0
-    tz: 0
+    x: -207.8697134546555 
+    y: 14.54783218480884 
+    z: 300.8400915916065 
+    tx: -71.48182936362494 
+    ty: -163.94142980925722 
+    tz: 99.16410668595813
 
   #fantasma 1793348070504
   #manina 1793267393471
@@ -194,8 +194,8 @@ debug:
   #rally f1 1793465885320
   #fanculopista 1793725529202
   #testa 1793725554231
-  debug_seed: 1793725676492
-  lock_seed: false
+  debug_seed: 1793963338733
+  lock_seed: true
 
 #1793103021044
 #1793103078839

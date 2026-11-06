@@ -19,9 +19,8 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
     "alea": "^1.0.1",
-    "cannon-es": "^0.20.0",
-    "cannon-es-debugger": "^1.0.0",
     "express": "^5.3.0",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",

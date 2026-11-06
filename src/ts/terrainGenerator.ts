@@ -1,19 +1,18 @@
 import * as THREE from "three"
-import * as CANNON from "cannon-es"
+import { RAPIER, createStaticTrimesh } from "./physics"
 import { createNoise2D } from "simplex-noise"
 import alea from "alea"
 
-import { addDetailedPlaneBody } from "./physicsHandler"
 import { genTrackLine } from "./trackGenerator"
 import { genRoad } from "./roadGenerator"
-import type { Mode, ModeNodes, Pivot, nearTurn, SideLines } from "./types"
+import type { Mode, ModeNodes, Pivot, nearTurn, SideLines, TrackContext } from "./types"
 
 import { config } from "./YAMLConfigs"
 
 const modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
 
 //FUNCTION - genTerrain()
-export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World) {
+export function genTerrain(seed: number, scene: THREE.Scene, world: RAPIER.World): TrackContext {
     const random = alea(seed) //Define Random Seeded Function
 
     //note - Plane Dimension Calc
@@ -37,9 +36,11 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
     });
     const terrainMesh = new THREE.Mesh(geometry, material)
     terrainMesh.rotateX(- Math.PI / 2)
+    scene.add(terrainMesh)
+    createStaticTrimesh(terrainMesh, world)
 
     //Track Centerline
-    const centerline = genTrackLine(seed, planeDim, scene);
+    const centerline = genTrackLine(seed, planeDim, scene)
 
     const flatCenterlineCurve = new THREE.CatmullRomCurve3(
         centerline.poses,
@@ -105,8 +106,19 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: CANNON.World
     if (config.debug.show_centerline) debugShowCenterline(centerlineCurve, scene)
     if (config.debug.show_side_lines) debugShowSidelines(sideLines, scene)
     
-    genRoad(seed, scene, world, sideLines)
-    addDetailedPlaneBody(terrainMesh, scene, world)
+    const finishlinePoint = genRoad(
+        seed, scene, world,
+        flatPoints,
+        centerline.poses,
+        sectorChangePoints,
+        sideLines
+    )
+
+    return {
+        centerlineCurve: centerlineCurve,
+        centerlinePoints: flatPoints,
+        finishlinePoint: finishlinePoint
+    }
 } 
 //!FUNCTION
 

@@ -1,4 +1,5 @@
 import * as THREE from "three"
+import { RAPIER } from "./physics"
 
 export interface GameConfig {
     game: {
@@ -218,4 +219,15 @@ export type nearTurn = {
 export type SideLines = {
     left: THREE.Vector3[],
     right: THREE.Vector3[]
+}
+
+export type TrackContext = {
+    centerlineCurve: THREE.CatmullRomCurve3,
+    centerlinePoints: THREE.Vector3[],
+    finishlinePoint: number
+}
+
+export type SyncObj = {
+    mesh: THREE.Mesh,
+    body: RAPIER.RigidBody
 }
