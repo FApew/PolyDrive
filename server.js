@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000
 
 const app = express()
 const server = http.createServer(app)
+app.use("/src/assets/models", express.static(path.join(__dirname, "src/assets/models")))
 app.use(express.static(path.join(__dirname, "dist")))
 
 app.set("trust proxy", true)
