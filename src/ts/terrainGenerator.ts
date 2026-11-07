@@ -37,8 +37,26 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: RAPIER.World
     const terrainMesh = new THREE.Mesh(geometry, material)
     terrainMesh.rotateX(- Math.PI / 2)
     scene.add(terrainMesh)
-    createStaticTrimesh(terrainMesh, world)
 
+    //note - terrainMesh Semplification
+    const physicsGeo = new THREE.PlaneGeometry(planeDim, planeDim, 50, 50);
+    const posAttr = physicsGeo.attributes.position;
+    
+    if (posAttr) {
+        for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i)
+            const y = posAttr.getY(i)
+            const z = getHeight(x, y, seed, noise, maskNoiseFun, 1)
+            posAttr.setZ(i, z)
+        }
+        physicsGeo.computeVertexNormals()
+    }
+    
+    const physicsTerrainMesh = new THREE.Mesh(physicsGeo, material)
+    physicsTerrainMesh.rotateX(- Math.PI / 2)
+    
+    createStaticTrimesh(physicsTerrainMesh, world)
+    physicsGeo.dispose()
     //Track Centerline
     const centerline = genTrackLine(seed, planeDim, scene)
 

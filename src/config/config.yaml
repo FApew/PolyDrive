@@ -1,6 +1,6 @@
 game:
   default_fps: 240
-  physics_fps: 60
+  physics_fps: 120
 
 terrain:
   min_size: 900
@@ -11,7 +11,7 @@ terrain:
   main_amplitude: 1
 
   background_frequency: 0.001
-  background_amplitude: 30
+  background_amplitude: 0 #30
   
   mountains_frequency: 0.006
   mountains_amplitude: 35
@@ -20,6 +20,19 @@ terrain:
 road:
   elevation: 2.3
   thickness: 3.2
+
+car:
+  camera_follow_smoothness: 15
+
+  f1:
+    frictionSlip: 7
+    sideFrictionStiffness: 1.2
+    suspensionStiffness: 100
+    suspensionCompression: 8
+    suspensionRelaxation: 7
+    maxSuspensionTravel: 0.2
+    engineForce: 6000
+    
 
 track:
   centerline_samples: 1000
@@ -181,12 +194,14 @@ debug:
   show_road_sections: 0
 
   camera: #DEFAULT x:0 y:800 z:0, tx:0 ty:0 tz:0
-    x: -207.8697134546555 
-    y: 14.54783218480884 
-    z: 300.8400915916065 
-    tx: -71.48182936362494 
-    ty: -163.94142980925722 
-    tz: 99.16410668595813
+    x: 0
+    y: 800
+    z: 0
+    tx: 0
+    ty: 0
+    tz: 0
+
+  camera_follow: false
 
   #fantasma 1793348070504
   #manina 1793267393471
@@ -194,8 +209,5 @@ debug:
   #rally f1 1793465885320
   #fanculopista 1793725529202
   #testa 1793725554231
-  debug_seed: 1793963338733
-  lock_seed: true
-
-#1793103021044
-#1793103078839
+  debug_seed: 1793993329200
+  lock_seed: false

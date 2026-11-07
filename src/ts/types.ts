@@ -27,6 +27,8 @@ export interface GameConfig {
             ty: number
             tz: number
         }
+
+        camera_follow: boolean
         
         debug_seed: number
         lock_seed: boolean
@@ -50,6 +52,12 @@ export interface GameConfig {
         thickness: number
     }
 
+    car: {
+        camera_follow_smoothness: number
+
+        f1: CarTune
+    }
+
     track: {
         centerline_samples: number
 
@@ -70,131 +78,13 @@ export interface GameConfig {
         
         max_tries: number
 
-        casual: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-
-            min_curve_angle: number
-            max_curve_angle: number
-        }
-
-        f1: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-            
-            min_curve_angle: number
-            max_curve_angle: number
-        }
-
-        rally: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-            
-            min_curve_angle: number
-            max_curve_angle: number
-        }
-
-        touring: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-            
-            min_curve_angle: number
-            max_curve_angle: number
-        }
-
-        hillclimb: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-            
-            min_curve_angle: number
-            max_curve_angle: number
-        }
-
-        drift: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-            
-            min_curve_angle: number
-            max_curve_angle: number
-        }
-
-        karting: {
-            segment_weight: number
-
-            track_width: number
-
-            max_anchor_per_segment: number
-            multiple_anchors_chance: number
-
-            middle_cross_chance: number
-            middle_cross_distance: number
-
-            min_anchor_distance: number
-            max_anchor_distance: number
-            
-            min_curve_angle: number
-            max_curve_angle: number
-        }
+        casual: TrackTune
+        f1: TrackTune
+        rally: TrackTune
+        touring: TrackTune
+        hillclimb: TrackTune
+        drift: TrackTune
+        karting: TrackTune
     }
 }
 
@@ -203,6 +93,19 @@ export type Mode = "casual" | "rally" | "f1" | "touring" | "hillclimb" | "drift"
 export type Segment = {weight: number, mode: Mode}
 
 export type Point = {pose: THREE.Vector3, mode: Mode}
+
+export type TrackTune = {
+    segment_weight: number
+    track_width: number
+    max_anchor_per_segment: number
+    multiple_anchors_chance: number
+    middle_cross_chance: number
+    middle_cross_distance: number
+    min_anchor_distance: number
+    max_anchor_distance: number
+    min_curve_angle: number
+    max_curve_angle: number
+}
 
 export type ModeNodes = {points: number[], turns: number[], modes: Mode[]}
 
@@ -228,6 +131,16 @@ export type TrackContext = {
 }
 
 export type SyncObj = {
-    mesh: THREE.Mesh,
+    obj: THREE.Object3D,
     body: RAPIER.RigidBody
+}
+
+export type CarTune = {
+    frictionSlip: number,
+    sideFrictionStiffness: number,
+    suspensionStiffness: number,
+    suspensionCompression: number,
+    suspensionRelaxation: number,
+    maxSuspensionTravel: number,
+    engineForce: number
 }

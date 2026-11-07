@@ -22,7 +22,6 @@ export function genRoad(
     scene.add(roadMesh);
     createStaticTrimesh(roadMesh, world)
     
-
     const finishlinePoint = getFinishlinePoint(centerline, turns, sectorChange)
     return finishlinePoint
 }
@@ -46,7 +45,7 @@ function buildRoadMesh(side: SideLines, tileLength = 10, thickness = config.road
     const indices: number[] = []
 
     addStrip(topL, topR)   // top
-    addStrip(botR, botL)   // bottom
+    addStrip(botR, botL, true)   // bottom
     addStrip(botL, topL)   // left
     addStrip(topR, botR)   // right
 
@@ -64,15 +63,31 @@ function buildRoadMesh(side: SideLines, tileLength = 10, thickness = config.road
     return new THREE.Mesh(g, m)
 
     //fun - addStrip()
-    function addStrip(A: THREE.Vector3[], B: THREE.Vector3[]) {
+    function addStrip(
+        A: THREE.Vector3[],
+        B: THREE.Vector3[],
+        reverse = false
+    ) {
         const base = positions.length / 3
+
         for (let i = 0; i <= n; i++) {
-            positions.push(A[i]!.x, A[i]!.y, A[i]!.z, B[i]!.x, B[i]!.y, B[i]!.z)
+            positions.push(A[i]!.x, A[i]!.y, A[i]!.z)
+            positions.push(B[i]!.x, B[i]!.y, B[i]!.z)
+
             uvs.push(0, dist[i]! / tileLength, 1, dist[i]! / tileLength)
         }
+
         for (let i = 0; i < n; i++) {
-            const a = base + i * 2, b = a + 1, c = a + 2, d = a + 3
-            indices.push(a, b, c, b, d, c)
+            const a = base + i * 2
+            const b = a + 1
+            const c = a + 2
+            const d = a + 3
+
+            if (reverse) {
+                indices.push(a, c, b, b, c, d)
+            } else {
+                indices.push(a, b, c, b, d, c)
+            }
         }
     }
 }
@@ -95,8 +110,6 @@ function getFinishlinePoint(
             const nextIdx = (i + 1) % turns.length
 
             const dist = turns[i]!.distanceTo(turns[nextIdx]!)
-
-            console.log(i, nextIdx, dist)
 
             if (dist > tmp && forbiddenIdxs.indexOf(i) == -1) {
                 tmp = dist
@@ -122,10 +135,6 @@ function getFinishlinePoint(
             }
         })
     } while (check)
-
-    console.log(firstPose, lastPose)
-
-    console.log("Best: ", bestIdx)
 
     const off = bestIdx == 0 ? Math.floor(config.track.centerline_samples / 2) : 0
     const offset = (n: number): number => {
