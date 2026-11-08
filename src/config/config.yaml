@@ -11,7 +11,7 @@ terrain:
   main_amplitude: 1
 
   background_frequency: 0.001
-  background_amplitude: 30
+  background_amplitude: 10
   
   mountains_frequency: 0.006
   mountains_amplitude: 35
