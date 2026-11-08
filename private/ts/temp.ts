@@ -8,6 +8,9 @@ import {
     Car
 } from "./physics"
 
+import { io } from "socket.io-client"
+const socket = io()
+
 import Stats from "stats.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js"
@@ -16,8 +19,15 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import type { TrackContext } from "./types"
 import { genTerrain } from "./terrainGenerator"
 
-//SECTION - Inizialization
 import { config } from "./YAMLConfigs"
+
+//FUNCTION - mainInit()
+function mainInit() {
+
+}
+
+//SECTION - Inizialization
+
 await RAPIER.init()
 
 //note - THREE Scene Init
@@ -80,7 +90,6 @@ const physicsDebug = new RapierDebugger()
 
 //note - Car Init
 let car: Car
-
 
 //note - Resize Handling
 window.addEventListener("resize", () => {
