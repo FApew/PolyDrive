@@ -201,7 +201,7 @@ debug:
     ty: 0
     tz: 0
 
-  camera_follow: false
+  camera_follow: true
 
   #fantasma 1793348070504
   #manina 1793267393471

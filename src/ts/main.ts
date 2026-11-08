@@ -35,7 +35,7 @@ camera.position.set(config.debug.camera.x, config.debug.camera.y, config.debug.c
 
 let followCamera = config.debug.camera_follow
 
-const cameraOffset = new THREE.Vector3(0, 4, -4)
+const cameraOffset = new THREE.Vector3(0, 3, -6)
 const cameraLookOffset = new THREE.Vector3(0, 1, 5)
 const cameraTarget = new THREE.Vector3()
 
@@ -62,7 +62,7 @@ const loader = new GLTFLoader()
 
 //Car Models
 const [carGLTF, wheelGLTF] = await Promise.all([
-    loader.loadAsync("./src/assets/models/car.glb"),
+    loader.loadAsync("./src/assets/models/giulia.glb"),
     loader.loadAsync("./src/assets/models/tire.glb")
 ])
 
@@ -154,11 +154,13 @@ function newWorld() {
     sun.position.set(100, 150, 50)
     scene.add(sun)
 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
     const carRoot = new THREE.Group()
 
     const carVisual = carModel.clone(true)
-    carVisual.position.y = -0.2
-    carVisual.position.z = 0.2
+    carVisual.position.y-=0.36
 
     carRoot.add(carVisual)
 
@@ -287,6 +289,7 @@ function updateFollowCamera(dt: number) {
     cameraTarget.lerp(desiredLook, smoothness)
 
     camera.lookAt(cameraTarget)
+    controls.target.set(cameraTarget.x, cameraTarget.y, cameraTarget.z)
 }
 
 //debugFun - debugDrawVect()

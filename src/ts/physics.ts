@@ -162,7 +162,7 @@ export class Car {
         world.createCollider(
             RAPIER.ColliderDesc.cuboid(1.85 / 2, 0.3, 4.7 / 2)
                 .setMass(1200)
-                .setTranslation(0, -0.2, 0)
+                .setTranslation(0, 0, 0)
                 .setFriction(0.1),
             this.chassis
         )
@@ -172,10 +172,10 @@ export class Car {
 
         //note - Wheel Positions
         const wheelPos = [
-            new THREE.Vector3(-0.7, 0,  1.1), // front left
-            new THREE.Vector3( 0.7, 0,  1.1), // front right
-            new THREE.Vector3(-0.65, 0, -2.7), // rear left
-            new THREE.Vector3( 0.65, 0, -2.7), // rear right
+            new THREE.Vector3(-0.762, 0,  1.4), // front left
+            new THREE.Vector3( 0.762, 0,  1.4), // front right
+            new THREE.Vector3(-0.762, 0, -1.4), // rear left
+            new THREE.Vector3( 0.762, 0, -1.4), // rear right
         ]
 
         const wheelDirection = new THREE.Vector3(0, -1, 0)
@@ -200,7 +200,7 @@ export class Car {
             wheel.add(visual)
             mesh.add(wheel)
 
-            visual.scale.setScalar(0.5)
+            visual.scale.setScalar(1.5)
             this.wheelMeshes.push(wheel)
         })
 
