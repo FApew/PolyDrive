@@ -5,11 +5,12 @@ export type GameConfig = {
     game: {
         default_fps: number
         physics_fps: number
+        codes_lenght: 5
     }
 
     debug: {
         show_cannon_debugger: boolean
-        
+
         show_segments: boolean
         show_points: boolean
         show_floating_centerline: boolean
@@ -22,7 +23,7 @@ export type GameConfig = {
         camera : { x: number, y: number, z: number, tx: number, ty: number, tz: number }
 
         camera_follow: boolean
-        
+
         debug_seed: number
         lock_seed: boolean
     }
@@ -77,7 +78,7 @@ export type GameConfig = {
 
         border: number
         center: number
-        
+
         max_tries: number
 
         casual: TrackTune
@@ -113,6 +114,11 @@ export type TrackTune = {
 }
 
 export type CarModelName = "giulia"
+
+export type CarVisuals = {
+    model: CarModelName,
+    color: THREE.ColorRepresentation
+}
 
 export type CarModel = {
     wheel_pos: Vec3
@@ -157,7 +163,16 @@ export type CarTune = {
     engineForce: number
 }
 
+export type Player = {
+    id: string,
+    carVisuals: CarVisuals
+    currentSpeed: number,
+    currentSteer: number
+}
+
 export type Lobby = {
-    solo: boolean,
-    code: number | undefined
+    code: string,
+    leader: string,
+    playerList: Player[],
+    state: "lobby" | "running"
 }

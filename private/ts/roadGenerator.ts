@@ -33,7 +33,7 @@ function buildRoadMesh(side: SideLines, tileLength = 10, thickness = config.road
     const n = left.length
 
     const down = new THREE.Vector3(0, -thickness, 0)
-    const loop = (pts: THREE.Vector3[]) => Array.from({ length: n + 1 }, (obj, i) => pts[i % n]!)  // closes the loop
+    const loop = (pts: THREE.Vector3[]): THREE.Vector3[] => Array.from({ length: n + 1 }, (_, i) => pts[i % n]!)  // closes the loop
 
     const [topL, topR] = [loop(left), loop(right)]
     const [botL, botR] = [topL.map(p => p.clone().add(down)), topR.map(p => p.clone().add(down))]
@@ -64,11 +64,7 @@ function buildRoadMesh(side: SideLines, tileLength = 10, thickness = config.road
     return new THREE.Mesh(g, m)
 
     //fun - addStrip()
-    function addStrip(
-        A: THREE.Vector3[],
-        B: THREE.Vector3[],
-        reverse = false
-    ) {
+    function addStrip(A: THREE.Vector3[], B: THREE.Vector3[], reverse = false): void {
         const base = positions.length / 3
 
         for (let i = 0; i <= n; i++) {

@@ -7,12 +7,12 @@ import type { SyncObj, CarTune } from "../../shared/types"
 const syncList: SyncObj[] = []
 
 //fun - addSync()
-export function addSync(obj: THREE.Object3D, body: RAPIER.RigidBody) {
+export function addSync(obj: THREE.Object3D, body: RAPIER.RigidBody): void {
     syncList.push({obj: obj, body: body})
 }
 
 //fun - clearSyncList()
-export function clearSyncList() {
+export function clearSyncList(): void {
     syncList.length = 0
 }
 
@@ -126,7 +126,7 @@ export class RapierDebugger {
     constructor() { this.mesh.frustumCulled = false }
 
     //fun - update()
-    update(world: RAPIER.World) {
+    update(world: RAPIER.World): void {
         const { vertices, colors } = world.debugRender()
         this.mesh.geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3))
         this.mesh.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 4))
@@ -210,7 +210,7 @@ export class Car {
     }
 
     //fun - applyTune()
-    applyTune(t: CarTune) {
+    applyTune(t: CarTune): void {
         for (let i = 0; i < 4; i++) {
             this.vehicle.setWheelFrictionSlip(i, t.frictionSlip)
             this.vehicle.setWheelSideFrictionStiffness(i, t.sideFrictionStiffness)
@@ -223,7 +223,7 @@ export class Car {
     }
 
     //fun - blendTo()
-    blendTo(target: CarTune, dt: number, rate = 2) {
+    blendTo(target: CarTune, dt: number, rate = 2): void {
         const k = Math.min(1, dt * rate)
         for (const key of Object.keys(target) as (keyof CarTune)[]) {
             this.current[key] += (target[key] - this.current[key]) * k
@@ -232,7 +232,7 @@ export class Car {
     }
 
     //FUNCTION - drive()
-    drive(throttle: number, brake: number, steer: number, handbrake: boolean, dt: number) {
+    drive(throttle: number, brake: number, steer: number, handbrake: boolean, dt: number): void {
         const speed = -this.vehicle.currentVehicleSpeed()
         document.getElementById("speed")!.innerHTML = Math.abs((speed * 3.6)).toFixed(2)
 
@@ -277,7 +277,7 @@ export class Car {
     //!FUNCTION
 
     //fun updateWheelMeshes()
-    updateWheelMeshes() {
+    updateWheelMeshes(): void {
         const steeringAxis = new THREE.Vector3(0, 1, 0)
         const axleAxis = new THREE.Vector3(1, 0, 0)
 

@@ -377,7 +377,7 @@ function getSideLines(
     return {left: leftPoints, right: rightPoints}
 
     //FUNCTION - fixCorner()
-    function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot) {
+    function fixCorner(sidePoints: THREE.Vector3[], nearTurnPoints: THREE.Vector3[][], pivot: Pivot): void {
         const nextIdx = (pivot.idx + 1) % nearTurnPoints.length
 
         const firstTurnPoint = nearTurnPoints[pivot.idx]![0]!
@@ -414,8 +414,7 @@ function getSideLines(
         helperSmoothSlope(sidePoints, 
             startIdx, endIdx,
             firstInnerIdx, lastInnerIdx,
-            pivot.pivot.clone().setY(avgY),
-            pivot.idx
+            pivot.pivot.clone().setY(avgY)
         )
 
         //fun - helperCurveSide()
@@ -503,9 +502,8 @@ function getSideLines(
             endIdx: number,
             firstInnerIdx: number,
             lastInnerIdx: number,
-            pivot: THREE.Vector3,
-            idx: number
-        ) {
+            pivot: THREE.Vector3
+        ): void {
             const farStartIdx = (startIdx - config.track.turn_smoothness) % sidePoints.length
             const farEndIdx = (endIdx + config.track.turn_smoothness + 1) % sidePoints.length
             const startY = sidePoints[farStartIdx]!.y, endY = sidePoints[farEndIdx]!.y
@@ -702,7 +700,7 @@ function getSideLines(
     }
 
     //debugFun - debugShowTurnTangets()
-    function debugShowTurnTangets(lC: THREE.CatmullRomCurve3, lpC: THREE.CatmullRomCurve3, rC: THREE.CatmullRomCurve3, rpC: THREE.CatmullRomCurve3) {
+    function debugShowTurnTangets(lC: THREE.CatmullRomCurve3, lpC: THREE.CatmullRomCurve3, rC: THREE.CatmullRomCurve3, rpC: THREE.CatmullRomCurve3): void {
         const g1 = new THREE.BufferGeometry().setFromPoints(lC.getPoints(config.track.centerline_samples / 20))
         const g2 = new THREE.BufferGeometry().setFromPoints(rC.getPoints(config.track.centerline_samples / 20))
         const g3 = new THREE.BufferGeometry().setFromPoints(lpC.getPoints(config.track.centerline_samples / 20))

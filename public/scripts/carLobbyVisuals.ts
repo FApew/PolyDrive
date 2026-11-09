@@ -19,17 +19,30 @@ models["tire"] = tireGLTF.scene
 
 //CLASS - carLobbyVisual
 export class carLobbyVisual {
+    id: string
     mesh: THREE.Group
     chassis: THREE.Group
     wheelMesh: THREE.Group[] = []
 
     //fun - constructor()
-    constructor(model: CarModelName) {
+    constructor(id: string, model: CarModelName) {
+        this.id = id
 
         const carGroup = new THREE.Group()
 
         //note - Chassis
         const carChassis = models[model]!.clone(true)
+
+        carChassis.traverse(child => {
+            if (child instanceof THREE.Mesh) {
+                if (Array.isArray(child.material)) {
+                    child.material = child.material.map(mat => mat.clone())
+                } else {
+                    child.material = child.material.clone()
+                }
+            }
+        })
+
         carChassis.position.y = config.car.models[model].elevation
         this.chassis = carChassis
         carGroup.add(carChassis)

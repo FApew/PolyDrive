@@ -1,22 +1,44 @@
+import * as THREE from "three"
 import iro from "@jaames/iro"
 
-import { defaultColor, setCarColor } from "./main"
-import { OculusHandModel } from "three/examples/jsm/Addons.js"
+import { defaultColor, setCarColor, createLobby, leaveLobby, joinLobby } from "./main"
 
 //note - HTML Elements
-const join = document.getElementById("join")
-const create = document.getElementById("create")
-const customize = document.getElementById("customize")
-const settings = document.getElementById("settings")
-const sideBar = document.getElementById("sideBar")
+const join_ready = document.getElementById("join") as HTMLDivElement
+const codeInput = document.getElementById("codeInput") as HTMLInputElement
+const create_leave = document.getElementById("create") as HTMLDivElement
+const customize = document.getElementById("customize") as HTMLDivElement
+const settings = document.getElementById("settings") as HTMLDivElement
+const sideBar = document.getElementById("sideBar") as HTMLDivElement
 
 //Global Vars
 let sideBarVal = 0, lastSideBarVal = 0
 let firstCustomize = true
-let lastColor: number
+let lastColor: THREE.ColorRepresentation //Cool Colors: #b03c40 #735bc2 #10713b
+
+//NOTE "JOIN & READY" Events
+join_ready.addEventListener("click", async (e) => {
+    const target = e.target as HTMLDivElement
+
+    if (target.id == "join") {
+        const code: string = codeInput.value
+        if (code.length < 5) {alert("Enter a 5 digit code"); return}
+
+        if (!await joinLobby(code)) { console.log("test"); alert("Code is invalid") }
+
+    } else if (target.id == "ready") { console.log("brao") }
+})
+
+//NOTE - "CREATE & LEAVE" Events
+create_leave.addEventListener("click", (e) => {
+    const target = e.target as HTMLDivElement
+
+    if (target.id == "create") { createLobby() }
+    else if (target.id == "leave") { leaveLobby() }
+})
 
 //NOTE - "customize" Events
-customize!.addEventListener("click", () => {
+customize.addEventListener("click", () => {
     if (firstCustomize == true) {
         lastColor = defaultColor
         firstCustomize = false
@@ -27,13 +49,13 @@ customize!.addEventListener("click", () => {
 })
 
 //NOTE - "settings" Events
-settings!.addEventListener("click", () => {
+settings.addEventListener("click", () => {
     sideBarVal = sideBarVal == 2 ? 0 : 2
     updateSideBar()
 })
 
 //FUNCTION - async updateSideBar()
-async function updateSideBar() {
+async function updateSideBar(): Promise<void> {
     if (sideBarVal == 0) { //SideBar closed
         await closeSideBar()
     } else { //Open SideBar
@@ -46,24 +68,24 @@ async function updateSideBar() {
             case 2: { settingsUI(); break } //Settings
         }
 
-        sideBar!.classList.add("selected")
+        sideBar.classList.add("selected")
     }
 
     lastSideBarVal = sideBarVal
 
     //fun - closeSideBar()
-    async function closeSideBar() {
-        sideBar!.classList.remove("selected")
+    async function closeSideBar(): Promise<void> {
+        sideBar.classList.remove("selected")
         await new Promise((res) => {setTimeout(res, 100)})
-        sideBar!.innerHTML = ""
+        sideBar.innerHTML = ""
     }
 
     //fun - customizeUI()
-    function customizeUI() {
+    function customizeUI(): void {
         //note - sideBar Grid Layout
-        sideBar!.style.display = "grid"
-        sideBar!.style.gridTemplateColumns = "1fr"
-        sideBar!.style.gridTemplateRows = "repeat(2, 0.15fr 1fr)"
+        sideBar.style.display = "grid"
+        sideBar.style.gridTemplateColumns = "1fr"
+        sideBar.style.gridTemplateRows = "repeat(2, 0.15fr 1fr)"
 
         //note - modelSliderLabel Creation
         const modelSliderLabel = document.createElement("div")
@@ -71,13 +93,13 @@ async function updateSideBar() {
         modelSliderLabel.classList.add("sideBarLabel")
         modelSliderLabel.innerHTML = "Model: "
 
-        sideBar!.appendChild(modelSliderLabel)
+        sideBar.appendChild(modelSliderLabel)
 
         //note - modelSlider Creation
         const modelSlider = document.createElement("div")
         modelSlider.id = "modelSlider"
 
-        sideBar!.appendChild(modelSlider)
+        sideBar.appendChild(modelSlider)
 
         //note - colorPickerLabel Creation
         const colorPickerLabel = document.createElement("div")
@@ -85,13 +107,13 @@ async function updateSideBar() {
         colorPickerLabel.classList.add("sideBarLabel")
         colorPickerLabel.innerHTML = "Color: "
 
-        sideBar!.appendChild(colorPickerLabel)
+        sideBar.appendChild(colorPickerLabel)
 
         //note - colorPicker Creation
         const colorPicker = document.createElement("div")
         colorPicker.id = "colorPicker"
 
-        sideBar!.appendChild(colorPicker)
+        sideBar.appendChild(colorPicker)
 
         const iroJSbox = document.createElement("div")
         iroJSbox.id = "iroJSbox"
@@ -126,7 +148,7 @@ async function updateSideBar() {
         })
 
         //fun - updateColorUI()
-        function updateColorUI(color: iro.Color) {
+        function updateColorUI(color: iro.Color): void {
             currentColor.style.background = color.hexString
             currentColor.innerHTML = color.hexString
 
@@ -141,10 +163,10 @@ async function updateSideBar() {
     }
 
     //fun - settingsUI()
-    function settingsUI() {
+    function settingsUI(): void {
         //note - sideBar Grid Layout
-        sideBar!.style.display = "flex"
-        sideBar!.style.flexDirection = "column"
+        sideBar.style.display = "flex"
+        sideBar.style.flexDirection = "column"
 
         //note - settingLabel Creation
         const settingLabel = document.createElement("div")
@@ -152,7 +174,7 @@ async function updateSideBar() {
         settingLabel.classList.add("sideBarLabel")
         settingLabel.innerHTML = "Settings: "
 
-        sideBar!.appendChild(settingLabel)
+        sideBar.appendChild(settingLabel)
     }
 }
 //!FUNCTION

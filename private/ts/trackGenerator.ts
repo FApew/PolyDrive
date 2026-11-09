@@ -327,7 +327,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
     }
 
     //fun - helperOverlap()
-    function helperOverlap(points: THREE.Vector3[], samples: number = config.track.centerline_samples, tol: number = 10) {
+    function helperOverlap(points: THREE.Vector3[], samples: number = config.track.centerline_samples, tol: number = 10): boolean {
         const curve = new THREE.CatmullRomCurve3(
             points,
             false,

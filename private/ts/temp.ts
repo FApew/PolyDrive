@@ -21,11 +21,6 @@ import { genTerrain } from "./terrainGenerator"
 
 import { config } from "../../shared/YAMLConfigs"
 
-//FUNCTION - mainInit()
-function mainInit() {
-
-}
-
 //SECTION - Inizialization
 
 await RAPIER.init()
@@ -142,7 +137,7 @@ window.addEventListener("keypress", (e) => {
 })
 
 //fun newWorld()
-function newWorld() {
+function newWorld(): void {
     console.log("\n")
 
     scene.clear()
@@ -271,7 +266,7 @@ function gameLoop(currentFrame: number): void {
 requestAnimationFrame(gameLoop)
 
 //fun updateFollowCamera()
-function updateFollowCamera(dt: number) {
+function updateFollowCamera(dt: number): void {
     if (!followCamera || !car) return
 
     const chassis = car.chassis
