@@ -1,11 +1,12 @@
 import * as THREE from "three"
-import { RAPIER, createStaticTrimesh } from "./physics"
+import RAPIER from "@dimforge/rapier3d-compat"
+import { createStaticTrimesh } from "./physics"
 import { createNoise2D } from "simplex-noise"
 import alea from "alea"
 
-import type { SideLines } from "./types"
+import type { SideLines } from "../../shared/types"
 
-import { config } from "./YAMLConfigs"
+import { config } from "../../shared/YAMLConfigs"
 
 //FUNCTION - genRoad()
 export function genRoad(

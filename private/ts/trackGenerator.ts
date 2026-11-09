@@ -1,9 +1,9 @@
 import * as THREE from "three"
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import alea from "alea"
-import type { Mode, Segment, Point, ModeNodes } from "./types"
+import type { Mode, Segment, Point, ModeNodes } from "../../shared/types"
 
-import { config } from "./YAMLConfigs"
+import { config } from "../../shared/YAMLConfigs"
 
 const modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
 

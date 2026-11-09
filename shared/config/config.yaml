@@ -21,17 +21,28 @@ road:
   elevation: 2.3
   thickness: 3.2
 
+lobby: 
+  orbit_constraints:
+    polar_angle: {min: 5, max: 75}
+    zoom: {min: 3, max: 5}
+
 car:
   camera_follow_smoothness: 15
 
-  f1:
-    frictionSlip: 7
-    sideFrictionStiffness: 1.2
-    suspensionStiffness: 100
-    suspensionCompression: 8
-    suspensionRelaxation: 7
-    maxSuspensionTravel: 0.2
-    engineForce: 6000
+  models:
+    giulia:
+      wheel_pos: {x: -0.762, y: 0, z: 1.4}
+      elevation: 0
+
+  tuning:
+    f1:
+      frictionSlip: 7
+      sideFrictionStiffness: 1.2
+      suspensionStiffness: 100
+      suspensionCompression: 8
+      suspensionRelaxation: 7
+      maxSuspensionTravel: 0.2
+      engineForce: 6000
     
 
 track:

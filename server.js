@@ -24,8 +24,6 @@ app.use(express.static(join(__dirname, "dist")))
 
 //!SECTION
 
-
-
 //SECTION IO handler
 io.on("connection", (socket) => {
     console.log("User Connected:", socket.id)

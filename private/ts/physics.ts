@@ -1,10 +1,9 @@
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
-export { RAPIER }
 
-import { config } from "./YAMLConfigs"
+import { config } from "../../shared/YAMLConfigs"
 
-import type { SyncObj, CarTune } from "./types"
+import type { SyncObj, CarTune } from "../../shared/types"
 const syncList: SyncObj[] = []
 
 //fun - addSync()

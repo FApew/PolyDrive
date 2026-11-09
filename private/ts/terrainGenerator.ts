@@ -1,13 +1,14 @@
 import * as THREE from "three"
-import { RAPIER, createStaticTrimesh } from "./physics"
+import RAPIER from "@dimforge/rapier3d-compat"
+import { createStaticTrimesh } from "./physics"
 import { createNoise2D } from "simplex-noise"
 import alea from "alea"
 
 import { genTrackLine } from "./trackGenerator"
 import { genRoad } from "./roadGenerator"
-import type { Mode, ModeNodes, Pivot, nearTurn, SideLines, TrackContext } from "./types"
+import type { Mode, ModeNodes, Pivot, NearTurn, SideLines, TrackContext } from "../../shared/types"
 
-import { config } from "./YAMLConfigs"
+import { config } from "../../shared/YAMLConfigs"
 
 const modes: Mode[] = ["casual", "f1", "rally", "touring", "hillclimb", "drift", "karting"]
 
@@ -229,7 +230,7 @@ function getSideLines(
     let leftPoints: THREE.Vector3[] = []
     let rightPoints: THREE.Vector3[] = []
 
-    let nearTurns: nearTurn = {
+    let nearTurns: NearTurn = {
         l: [],
         r: [],
         pivots: [],

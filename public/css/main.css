@@ -17,6 +17,8 @@ body {
 
     /* border: 2px solid lime; */
     box-sizing: border-box;
+
+    pointer-events: none;
 }
 
 .UIGrid {
@@ -57,6 +59,8 @@ body {
 
     /*border: 2px solid yellow;*/
     box-sizing: border-box;
+
+    pointer-events: all;
 }
 
 .UIGridElm:hover {

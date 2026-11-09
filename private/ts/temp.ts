@@ -1,6 +1,6 @@
 import * as THREE from "three"
-import { 
-    RAPIER, 
+import RAPIER from "@dimforge/rapier3d-compat"
+import {
     createWorld, 
     RapierDebugger, 
     updatePhysics,
@@ -16,10 +16,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { TrackContext } from "./types"
+import type { TrackContext } from "../../shared/types"
 import { genTerrain } from "./terrainGenerator"
 
-import { config } from "./YAMLConfigs"
+import { config } from "../../shared/YAMLConfigs"
 
 //FUNCTION - mainInit()
 function mainInit() {
@@ -197,7 +197,7 @@ function newWorld() {
     car = new Car(
         world,
         carRoot,
-        config.car.f1,
+        config.car.tuning.f1,
         wheelModel
     )
 

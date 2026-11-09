@@ -1,7 +1,7 @@
 import * as THREE from "three"
-import { RAPIER } from "./physics"
+import RAPIER from "@dimforge/rapier3d-compat"
 
-export interface GameConfig {
+export type GameConfig = {
     game: {
         default_fps: number
         physics_fps: number
@@ -19,14 +19,7 @@ export interface GameConfig {
         show_turn_lines: boolean
         show_road_sections: 2 | 1 | 0
 
-        camera : {
-            x: number
-            y: number
-            z: number
-            tx: number
-            ty: number
-            tz: number
-        }
+        camera : { x: number, y: number, z: number, tx: number, ty: number, tz: number }
 
         camera_follow: boolean
         
@@ -47,6 +40,13 @@ export interface GameConfig {
         mountains_chance: number
     }
 
+    lobby: {
+        orbit_constraints: {
+            polar_angle: Range
+            zoom: Range
+        }
+    }
+
     road: {
         elevation: number
         thickness: number
@@ -55,7 +55,9 @@ export interface GameConfig {
     car: {
         camera_follow_smoothness: number
 
-        f1: CarTune
+        models: {giulia: CarModel}
+
+        tuning: { f1: CarTune }
     }
 
     track: {
@@ -88,6 +90,9 @@ export interface GameConfig {
     }
 }
 
+export type Vec3 = {x: number, y: number, z: number}
+export type Range = {min: number, max: number}
+
 export type Mode = "casual" | "rally" | "f1" | "touring" | "hillclimb" | "drift" | "karting"
 
 export type Segment = {weight: number, mode: Mode}
@@ -107,11 +112,18 @@ export type TrackTune = {
     max_curve_angle: number
 }
 
+export type CarModelName = "giulia"
+
+export type CarModel = {
+    wheel_pos: Vec3
+    elevation: number
+}
+
 export type ModeNodes = {points: number[], turns: number[], modes: Mode[]}
 
 export type Pivot = {pivot: THREE.Vector3, idx: number, lr: "left" | "right"}
 
-export type nearTurn = {
+export type NearTurn = {
     l: THREE.Vector3[][],
     r: THREE.Vector3[][],
     pivots: Pivot[]
@@ -143,4 +155,9 @@ export type CarTune = {
     suspensionRelaxation: number,
     maxSuspensionTravel: number,
     engineForce: number
+}
+
+export type Lobby = {
+    solo: boolean,
+    code: number | undefined
 }
