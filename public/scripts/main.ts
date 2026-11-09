@@ -6,6 +6,10 @@ import { config } from "../../shared/YAMLConfigs"
 import type { Lobby } from "../../shared/types"
 import { carLobbyVisual } from "./carLobbyVisuals"
 
+export let defaultColor: number
+
+let lobbyInitCheck: boolean = false
+
 //NOTE - Socket Init
 import { io } from "socket.io-client"
 const socket = io()
@@ -24,7 +28,9 @@ socket.on("pong", (data) => {
 
 //socket_In - genLobby
 socket.on("genLobby", () => {
+    if (lobbyInitCheck) return
     lobbyInit()
+    lobbyInitCheck = true
 })
 
 //note - Lobby OBJ
@@ -32,6 +38,8 @@ const lobby: Lobby = {
     solo: true,
     code: undefined
 }
+
+let car: carLobbyVisual
 
 //FUNCTION - lobbyInit()
 async function lobbyInit() {
@@ -56,7 +64,7 @@ async function lobbyInit() {
 
     //note - Controls Init
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enablePan = true
+    controls.enablePan = false
 
     controls.enableDamping = true
     controls.dampingFactor = 0.05
@@ -106,10 +114,12 @@ async function lobbyInit() {
     scene.add(plane)
 
     //note - Car Init
-    const car = new carLobbyVisual("giulia")
+    car = new carLobbyVisual("giulia")
     
     car.mesh.position.y = 0.33
     scene.add(car.mesh)
+
+    defaultColor = car.getDefaultColor()
 
     let currentSpeed = 0, currentSteer = 0
 
@@ -142,6 +152,10 @@ async function lobbyInit() {
     requestAnimationFrame(renderLoop)
 }
 //!FUNCTION
+
+export function setCarColor(color: THREE.ColorRepresentation) {
+    car.setColor(color)
+}
 
 //NOTE - KeyPress Listener
 const keys: Record<string, boolean> = {}

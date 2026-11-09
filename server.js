@@ -29,7 +29,7 @@ io.on("connection", (socket) => {
     console.log("User Connected:", socket.id)
 
     socket.on("ping", (data) => {
-        console.log("Latency", Date.now() - data, "ms")
+        console.log("Latency:", Date.now() - data, "ms")
         socket.emit("pong", data)
 
         socket.emit("genLobby")

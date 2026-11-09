@@ -11,7 +11,10 @@
     <script src="./scripts/main.ts" type="module" defer></script>
     <div id="soloLobbyUI" class="UI">
         <div class="UIGrid">
-            <div class="UIGridElm" id="join">join lobby</div>
+            <div class="UIGridElm" id="join">
+                join lobby
+                <input type="text" placeholder="Code: ">
+            </div>
             <div class="UIGridElm" id="create">create lobby</div>
             <div class="UIGridElm" id="customize">customize car</div>
             <div class="UIGridElm" id="settings">settings</div>
@@ -21,5 +24,7 @@
     <div id="multiplayerLobbyUI" style="display: none;" class="UI">
         
     </div>
+    <div id="sideBar"></div>
 </body>
+<script src="./scripts/UI.ts" type="module" defer></script>
 </html>

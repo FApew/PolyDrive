@@ -1,6 +1,5 @@
 import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
-import type { GLTF } from "three/addons/loaders/GLTFLoader.js"
 
 import type { Vec3, CarModelName } from "../../shared/types"
 import { config } from "../../shared/YAMLConfigs"
@@ -18,18 +17,24 @@ const [ giuliaGLTF, tireGLTF ] = await Promise.all([
 models["giulia"] = giuliaGLTF.scene
 models["tire"] = tireGLTF.scene
 
+//CLASS - carLobbyVisual
 export class carLobbyVisual {
     mesh: THREE.Group
+    chassis: THREE.Group
     wheelMesh: THREE.Group[] = []
 
+    //fun - constructor()
     constructor(model: CarModelName) {
 
         const carGroup = new THREE.Group()
 
+        //note - Chassis
         const carChassis = models[model]!.clone(true)
         carChassis.position.y = config.car.models[model].elevation
+        this.chassis = carChassis
         carGroup.add(carChassis)
 
+        //note - Wheels
         for (const i of [1, -1]) {
             for (const j of [1, -1]) {
                 const wheel = models["tire"]!.clone(true)
@@ -42,5 +47,39 @@ export class carLobbyVisual {
         }
 
         this.mesh = carGroup
+    }
+
+    //fun - getDefaultColor()
+    getDefaultColor(): number {
+        let color = 0xffffff
+
+        this.chassis.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+                const paint = materials.find(mat => mat.name == "paint")
+
+                if (paint instanceof THREE.MeshStandardMaterial) {
+                    color = paint.color.getHex()
+                }
+            }
+        })
+
+        return color
+    }
+
+    //fun - setColor()
+    setColor(color: THREE.ColorRepresentation): void {
+        this.chassis.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+                const paint = materials.find(mat => mat.name == "paint")
+
+                if (paint instanceof THREE.MeshStandardMaterial) {
+                    paint.color.set(color)
+                }
+            }
+        })
     }
 }

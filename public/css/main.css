@@ -4,6 +4,7 @@ body {
     height: 100%;
 
     margin: 0;
+    overflow: hidden;
 }
 
 .UI {
@@ -45,9 +46,11 @@ body {
     height: 100%;
 
     background: #ffffff20;
+    border-radius: 0 20px;
     box-shadow: 0 4px 30px #0000001a;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
+    border: 1px solid #ffffff20;
 
     transition: all .1s ease;
 
@@ -75,6 +78,45 @@ body {
     background: #fff;
     color: #000;
     font-size: 5vh;
+
+    transition: all .2s ease;
+    
+    justify-content: space-between;
+}
+
+#join > input {
+    outline: none;
+    border: none;
+    height: 60%;
+    width: 30%;
+    
+    background: #ffffff;
+    border-radius: 0 20px;
+    box-shadow: inset 5px 5px 10px #d9d9d9,
+                inset -5px -5px 10px #ffffff;
+
+    font-family: "Sans", sans-serif;
+    text-align: center;
+    font-size: 4vh;
+
+    transition: all .2s ease;
+
+    color: #000;
+}
+
+#join:hover {
+    transform: scale(1);
+    background: #00000000;
+    color: #fff;
+}
+
+#join:hover > input {
+    
+    background: #00000000;
+    box-shadow: inset 5px 5px 10px #141414,
+                inset -5px -5px 10px #1e1e1e;
+
+    color: #fff;
 }
 
 #create {
@@ -107,7 +149,100 @@ body {
 
     justify-content: end;
     background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
 
     color: #787878;
     font-size: 3vh;
+}
+
+#sideBar {
+    position: absolute;
+    width: 25vh;
+    height: 80vh;
+
+    right: -25vh;
+    transition: all .1s ease;
+    top: 3vh;
+
+    background: #ffffff20;
+    border-radius: 0 20px;
+    box-shadow: 0 4px 30px #0000001a;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid #ffffff20;
+    box-sizing: border-box;
+
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+#sideBar.selected {
+    right: 3vh;
+}
+
+.sideBarLabel {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    padding: 5px;
+    box-sizing: border-box;
+
+    color: #fff;
+    font-family: "Sans", sans-serif;
+    font-size: 3vh;
+}
+
+.sideBarLabel::after {
+    width: 80%;
+    height: 1px;
+    background: #ffffff20;
+
+    content: "";
+}
+
+#colorPicker {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 6fr 1fr;
+}
+
+#iroJSbox {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#currentColor {
+    position: relative;
+    width: 80%;
+    height: 80%;
+
+    justify-self: center;
+    align-self: center;
+
+    border-radius: 0 20px;
+    border: 2px #fff solid;
+    box-sizing: border-box;
+
+    font-family: "Sans", sans-serif;
+    font-size: 2.5vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
