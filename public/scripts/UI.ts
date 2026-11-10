@@ -25,7 +25,7 @@ join_ready.addEventListener("click", async (e) => {
     const target = e.target as HTMLDivElement
 
     if (target.id == "join") {
-        const code: string = codeInput.value
+        const code: string = codeInput.value.toUpperCase()
         if (code.length < 5) {alert("Enter a 5 digit code"); return}
 
         if (!await joinLobby(code)) { console.log("test"); alert("Code is invalid") }

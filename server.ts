@@ -6,7 +6,7 @@ import { Server } from "socket.io"
 
 import * as THREE from "three"
 
-import type { Lobby, Player, CarModelName, CarVisuals } from "./shared/types"
+import type { Lobby, LobbyPlayer, CarModelName, CarVisuals } from "./shared/types"
 
 //SECTION - General Server Init
 const __filename = fileURLToPath(import.meta.url)
@@ -47,11 +47,11 @@ function createLobby(id: string, code: string): void {
 
 //fun - joinLobby()
 function joinLobby(id: string, carVisuals: CarVisuals, code: string): void {
-    const newPlayer: Player = {
+    const newPlayer: LobbyPlayer = {
         id: id,
         carVisuals: carVisuals,
-        currentSpeed: 0,
-        currentSteer: 0
+        throttle: 0,
+        steer: 0
     }
 
     lobbyRecord[code]!.playerList.push(newPlayer)
@@ -153,15 +153,15 @@ io.on("connection", (socket) => {
     })
 
     //socket_In - REQwheelsUpdate
-    socket.on("REQwheelsUpdate", ({currentSpeed, currentSteer}) => {
+    socket.on("REQwheelsUpdate", ({throttle, steer}) => {
         const code = playerRecord[socket.id]
         if (code && lobbyRecord[code]) {
 
             const playerList = lobbyRecord[code].playerList
             const idx = playerList.findIndex((player) => {return player.id == socket.id})
 
-            playerList[idx]!.currentSpeed = currentSpeed
-            playerList[idx]!.currentSteer = currentSteer
+            playerList[idx]!.throttle = throttle
+            playerList[idx]!.steer = steer
 
             const playerIDsList = playerList.map((obj) => {return obj.id})
             io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "wheels"}))

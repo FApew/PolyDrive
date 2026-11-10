@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
+import { carLobbyVisual } from "../public/scripts/carLobbyVisuals"
 
 export type GameConfig = {
     game: {
@@ -164,17 +165,17 @@ export type CarTune = {
     engineForce: number
 }
 
-export type Player = {
+export type LobbyPlayer = {
     id: string,
     carVisuals: CarVisuals
-    currentSpeed: number,
-    currentSteer: number
+    throttle: number,
+    steer: number
 }
 
 export type Lobby = {
     code: string,
     leader: string,
-    playerList: Player[],
+    playerList: LobbyPlayer[],
     state: "lobby" | "running"
 }
 
@@ -182,4 +183,9 @@ export type TopRightInfo = {
     username: string,
     code: string,
     carVisuals: CarVisuals
+}
+
+export type LobbyCarList = {
+    own: carLobbyVisual | undefined,
+    others: carLobbyVisual[]
 }

@@ -2,7 +2,7 @@ import * as THREE from "three"
 import Stats from "stats.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { CarVisuals, Player, TopRightInfo } from "../../shared/types"
+import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
 import { carLobbyVisual } from "./carLobbyVisuals"
@@ -14,10 +14,7 @@ let lobbyInitCheck: boolean = false
 const currentCarVisuals: CarVisuals = {model: "giulia", color: 0x000000}
 let inLobby = false
 
-let cars: {
-    own: carLobbyVisual | undefined,
-    others: carLobbyVisual[]
-} = { own: undefined, others: []}
+let cars: LobbyCarList = { own: undefined, others: []}
 
 export const topRightInfo: TopRightInfo = {
     username: "",
@@ -124,7 +121,7 @@ async function lobbyInit(): Promise<void> {
     defaultColor = cars.own.getDefaultColor()
     currentCarVisuals.color = defaultColor
 
-    let currentSpeed = 0, currentSteer = 0, lastSpeed = 0, lastSteer = 0
+    let lastThrottle = 0, lastSteer = 0
     let pt = -1
 
     //fun - renderLoop()
@@ -136,28 +133,26 @@ async function lobbyInit(): Promise<void> {
         let dt = pt ? ct - pt : 1
 
         const throttle = keys["w"] ? 1 : 0
+        cars.own!.throttle = throttle
+
         const steer = (keys["a"] ? 1 : 0) - (keys["d"] ? 1 : 0)
-
-        currentSpeed = THREE.MathUtils.lerp(currentSpeed, throttle * 0.1, 1 - Math.exp(-5 * dt / 1000))
-        if (currentSpeed < 10e-4) currentSpeed = 0
-        cars.own!.wheelMesh[2]!.rotateX(currentSpeed)
-        cars.own!.wheelMesh[3]!.rotateX(currentSpeed)
-
-        currentSteer = THREE.MathUtils.lerp(currentSteer, steer * 0.7, 1 - Math.exp(-5 * dt / 1000))
-        if (Math.abs(currentSteer) < 10e-3) currentSteer = 0
-        cars.own!.wheelMesh[0]!.rotation.y = currentSteer
-        cars.own!.wheelMesh[1]!.rotation.y = currentSteer
-
-        if (((lastSpeed != 0) || (lastSteer != currentSteer)) && inLobby) {
-            socket.emit("REQwheelsUpdate", {currentSpeed: cars.own!.wheelMesh[2]!.rotation.x, currentSteer: cars.own!.wheelMesh[0]!.rotation.y})
+        cars.own!.steer = steer
+        
+        if ((lastThrottle != throttle || lastSteer != steer) && inLobby) {
+            socket.emit("REQwheelsUpdate", {throttle: throttle, steer: steer})
         }
+
+        cars.own!.updateWheels(dt)
+        cars.others.forEach((car) => {
+            car.updateWheels(dt)
+        })
     
         controls.update()
 
         renderer.render(scene, camera)
         pt = ct
-        lastSpeed = currentSpeed
-        lastSteer = currentSteer
+        lastThrottle = throttle
+        lastSteer = steer
         stats.end()
     }
     requestAnimationFrame(renderLoop)
@@ -165,7 +160,7 @@ async function lobbyInit(): Promise<void> {
 //!FUNCTION
 
 //fun - joinedLobby()
-async function joinedLobby(playerList: Player[]): Promise<void> {
+async function joinedLobby(playerList: LobbyPlayer[]): Promise<void> {
     inLobby = true
 
     const joinButton = document.getElementById("join") as HTMLDivElement
@@ -207,12 +202,12 @@ socket.on("lobbyRefresh", (playerList) => {
 })
 
 //fun - spawnCars()
-function spawnCars(playerList: Player[]): void {
+function spawnCars(playerList: LobbyPlayer[]): void {
     scene.clear()
     sceneSetup()
 
     cars.others = []
-    playerList.forEach((player: Player, idx: number) => {
+    playerList.forEach((player: LobbyPlayer, idx: number) => {
         const newCar = new carLobbyVisual(player.id, player.carVisuals.model)
         newCar.mesh.position.y = 0.33
         newCar.mesh.position.x = 3 * idx + (Math.random() - 0.5) * 0.2
@@ -220,7 +215,9 @@ function spawnCars(playerList: Player[]): void {
         setCarColor(player.carVisuals.color, newCar)
 
         if (player.id == socket.id) { cars.own = newCar }
-        else { cars.others.push(newCar) }
+        else {
+            cars.others.push(newCar)
+        }
 
         scene.add(newCar.mesh)
     })
@@ -230,25 +227,22 @@ function spawnCars(playerList: Player[]): void {
 
 socket.on("RESvisibleChange", ({playerList, change}) => {
     if (change === "color") {
-        playerList.forEach((player: Player) => {
+        playerList.forEach((player: LobbyPlayer) => {
             if (player.id == socket.id) return
 
             const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
-            console.log(cars.others)
             cars.others[idx]!.setColor(player.carVisuals.color)
         })
     } else if (change === "wheels") {
-        playerList.forEach((player: Player) => {
+        console.log("reqRes")
+        playerList.forEach((player: LobbyPlayer) => {
             
             if (player.id == socket.id) return
 
             const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
 
-            cars.others[idx]!.wheelMesh[0]!.rotation.y = player.currentSteer
-            cars.others[idx]!.wheelMesh[1]!.rotation.y = player.currentSteer
-
-            cars.others[idx]!.wheelMesh[2]!.rotation.x = player.currentSpeed
-            cars.others[idx]!.wheelMesh[3]!.rotation.x = player.currentSpeed
+            cars.others[idx]!.throttle = player.throttle
+            cars.others[idx]!.steer = player.steer
         })
     }
 })

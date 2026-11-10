@@ -23,6 +23,9 @@ export class carLobbyVisual {
     mesh: THREE.Group
     chassis: THREE.Group
     wheelMesh: THREE.Group[] = []
+    throttle: number = 0
+    steer: number = 0
+    currentWheelsSpeed: number = 0
 
     //fun - constructor()
     constructor(id: string, model: CarModelName) {
@@ -94,5 +97,20 @@ export class carLobbyVisual {
                 }
             }
         })
+    }
+
+    updateWheels(dt: number): void {
+        this.currentWheelsSpeed = THREE.MathUtils.lerp(
+            this.currentWheelsSpeed, this.throttle * 0.1, 1 - Math.exp(-5 * dt / 1000)
+        )
+
+        const currentSteer = THREE.MathUtils.lerp(
+            this.wheelMesh[0]!.rotation.y, this.steer * 0.7, 1 - Math.exp(-5 * dt / 1000)
+        )
+
+        this.wheelMesh[0]!.rotation.y = currentSteer
+        this.wheelMesh[1]!.rotation.y = currentSteer
+        this.wheelMesh[2]!.rotateX(this.currentWheelsSpeed)
+        this.wheelMesh[3]!.rotateX(this.currentWheelsSpeed)
     }
 }
