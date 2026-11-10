@@ -1,7 +1,10 @@
 import * as THREE from "three"
 import iro from "@jaames/iro"
 
-import { defaultColor, setCarColor, createLobby, leaveLobby, joinLobby } from "./main"
+import { defaultColor, setCarColor, createLobby, leaveLobby, joinLobby, topRightInfo } from "./main"
+
+import { config } from "../../shared/YAMLConfigs"
+import { code } from "three/tsl"
 
 //note - HTML Elements
 const join_ready = document.getElementById("join") as HTMLDivElement
@@ -10,6 +13,7 @@ const create_leave = document.getElementById("create") as HTMLDivElement
 const customize = document.getElementById("customize") as HTMLDivElement
 const settings = document.getElementById("settings") as HTMLDivElement
 const sideBar = document.getElementById("sideBar") as HTMLDivElement
+const topRightInfoElement = document.getElementById("topRightInfo") as HTMLDivElement
 
 //Global Vars
 let sideBarVal = 0, lastSideBarVal = 0
@@ -121,7 +125,7 @@ async function updateSideBar(): Promise<void> {
         colorPicker.appendChild(iroJSbox)
 
         const pickerWidth = iroJSbox.clientWidth * 0.8
-        const hex = `#${(lastColor).toString(16)}`;
+        const hex = `#${(lastColor).toString(16).padStart(6, "0")}`;
 
         //note - iroJS Picker
         const picker: iro.ColorPicker = iro.ColorPicker("#iroJSbox", {
@@ -178,3 +182,47 @@ async function updateSideBar(): Promise<void> {
     }
 }
 //!FUNCTION
+
+//fun updateInfos()
+export function updateInfos(): void {
+    topRightInfoElement.innerHTML = ""
+
+    topRightInfoElement.innerHTML = "User: "
+    
+    const usernameInput = document.createElement("input")
+    usernameInput.id = "usernameInput"
+    usernameInput.maxLength = config.game.username_lenght
+    usernameInput.placeholder = "<NAME>"
+    usernameInput.value = topRightInfo.username
+    resizeInput()
+
+    topRightInfoElement.appendChild(usernameInput)
+
+    usernameInput.addEventListener("input", resizeInput)
+
+    if (topRightInfo.code) {
+        const codeElm = document.createElement("div")
+        codeElm.innerHTML = `Code: ${ topRightInfo.code }`
+        codeElm.style.justifySelf = "end"
+        topRightInfoElement.appendChild(codeElm)
+    }
+
+    const modelElm = document.createElement("div")
+    modelElm.innerHTML = `Model: ${
+        topRightInfo.carVisuals.model.charAt(0).toUpperCase() + topRightInfo.carVisuals.model.slice(1)
+    }`
+    modelElm.style.justifySelf = "end"
+    topRightInfoElement.appendChild(modelElm)
+
+    const colorElm = document.createElement("div")
+    colorElm.innerHTML = `Color: #${ (topRightInfo.carVisuals.color).toString(16).padStart(6, "0") }`
+    colorElm.style.justifySelf = "end"
+    topRightInfoElement.appendChild(colorElm)
+
+    //fun - resizeInput
+    function resizeInput(): void {
+        const charN = Math.max(usernameInput.value.length + 1, 7)
+        usernameInput.style.width = `${charN}ch`
+        topRightInfo.username = usernameInput.value
+    }
+}

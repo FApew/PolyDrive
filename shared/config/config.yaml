@@ -2,6 +2,7 @@ game:
   default_fps: 240
   physics_fps: 120
   codes_length: 5
+  username_lenght: 20
 
 terrain:
   min_size: 900

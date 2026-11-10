@@ -8,12 +8,12 @@
     <title>p o l y d r i v e</title>
 </head>
 <body style="margin: 0;">
-    <script src="./scripts/main.ts" type="module" defer></script>
-    <div id="soloLobbyUI" class="UI">
-        <div class="UIGrid">
+    <script src="/scripts/main.ts" type="module"></script>
+    <div id="lobbyUI">
+        <div id="UIGrid">
             <div class="UIGridElm" id="join">
                 join lobby
-                <input id="codeInput" type="text" placeholder="Code: ">
+                <input id="codeInput" type="text" placeholder="Code: " maxlength="5">
             </div>
             <div class="UIGridElm" id="create">create lobby</div>
             <div class="UIGridElm" id="customize">customize car</div>
@@ -21,10 +21,10 @@
             <div class="UIGridElm" id="credits">By: FA_pew</div>
         </div>
     </div>
-    <div id="multiplayerLobbyUI" style="display: none;" class="UI">
-        
-    </div>
     <div id="sideBar"></div>
+    <div id="topRightInfo">
+
+    </div>
 </body>
-<script src="./scripts/UI.ts" type="module" defer></script>
+<script src="/scripts/UI.ts" type="module"></script>
 </html>

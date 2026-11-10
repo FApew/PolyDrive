@@ -2,18 +2,28 @@ import * as THREE from "three"
 import Stats from "stats.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { CarVisuals, Player } from "../../shared/types"
+import type { CarVisuals, Player, TopRightInfo } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
 import { carLobbyVisual } from "./carLobbyVisuals"
+import { updateInfos } from "./UI"
 
 export let defaultColor: THREE.ColorRepresentation
 
 let lobbyInitCheck: boolean = false
-let currentCarVisuals: CarVisuals = {model: "giulia", color: 0x000000}
+const currentCarVisuals: CarVisuals = {model: "giulia", color: 0x000000}
 let inLobby = false
 
-let ownCar: carLobbyVisual
+let cars: {
+    own: carLobbyVisual | undefined,
+    others: carLobbyVisual[]
+} = { own: undefined, others: []}
+
+export const topRightInfo: TopRightInfo = {
+    username: "",
+    code: "",
+    carVisuals: currentCarVisuals
+}
 
 //NOTE - Socket Init
 import { io } from "socket.io-client"
@@ -32,9 +42,11 @@ socket.on("pong", (time: number) => {
 })
 
 //socket_In - Init
-socket.on("Init", () => {
+socket.on("Init", async () => {
     if (lobbyInitCheck) return
-    lobbyInit()
+    await lobbyInit()
+    updateInfos()
+
     lobbyInitCheck = true
 })
 
@@ -50,6 +62,7 @@ window.addEventListener("keyup", e => {
 })
 
 const scene = new THREE.Scene()
+let controls: OrbitControls
 
 //FUNCTION - lobbyInit()
 async function lobbyInit(): Promise<void> {
@@ -72,7 +85,7 @@ async function lobbyInit(): Promise<void> {
     document.body.appendChild(renderer.domElement)
 
     //note - Controls Init
-    const controls = new OrbitControls(camera, renderer.domElement)
+    controls = new OrbitControls(camera, renderer.domElement)
     controls.enablePan = false
 
     controls.enableDamping = true
@@ -103,15 +116,16 @@ async function lobbyInit(): Promise<void> {
     sceneSetup()
 
     //note - Car Init
-    ownCar = new carLobbyVisual(socket.id!, "giulia")
+    cars.own = new carLobbyVisual(socket.id!, "giulia")
     
-    ownCar.mesh.position.y = 0.33
-    scene.add(ownCar.mesh)
+    cars.own.mesh.position.y = 0.33
+    scene.add(cars.own.mesh)
 
-    defaultColor = ownCar.getDefaultColor()
+    defaultColor = cars.own.getDefaultColor()
     currentCarVisuals.color = defaultColor
 
-    let currentSpeed = 0, currentSteer = 0, pt = -1
+    let currentSpeed = 0, currentSteer = 0, lastSpeed = 0, lastSteer = 0
+    let pt = -1
 
     //fun - renderLoop()
     function renderLoop(): void {
@@ -125,17 +139,25 @@ async function lobbyInit(): Promise<void> {
         const steer = (keys["a"] ? 1 : 0) - (keys["d"] ? 1 : 0)
 
         currentSpeed = THREE.MathUtils.lerp(currentSpeed, throttle * 0.1, 1 - Math.exp(-5 * dt / 1000))
-        ownCar.wheelMesh[2]!.rotateX(currentSpeed)
-        ownCar.wheelMesh[3]!.rotateX(currentSpeed)
+        if (currentSpeed < 10e-4) currentSpeed = 0
+        cars.own!.wheelMesh[2]!.rotateX(currentSpeed)
+        cars.own!.wheelMesh[3]!.rotateX(currentSpeed)
 
         currentSteer = THREE.MathUtils.lerp(currentSteer, steer * 0.7, 1 - Math.exp(-5 * dt / 1000))
-        ownCar.wheelMesh[0]!.rotation.y = currentSteer
-        ownCar.wheelMesh[1]!.rotation.y = currentSteer
+        if (Math.abs(currentSteer) < 10e-3) currentSteer = 0
+        cars.own!.wheelMesh[0]!.rotation.y = currentSteer
+        cars.own!.wheelMesh[1]!.rotation.y = currentSteer
+
+        if (((lastSpeed != 0) || (lastSteer != currentSteer)) && inLobby) {
+            socket.emit("REQwheelsUpdate", {currentSpeed: cars.own!.wheelMesh[2]!.rotation.x, currentSteer: cars.own!.wheelMesh[0]!.rotation.y})
+        }
     
         controls.update()
 
         renderer.render(scene, camera)
         pt = ct
+        lastSpeed = currentSpeed
+        lastSteer = currentSteer
         stats.end()
     }
     requestAnimationFrame(renderLoop)
@@ -146,15 +168,13 @@ async function lobbyInit(): Promise<void> {
 async function joinedLobby(playerList: Player[]): Promise<void> {
     inLobby = true
 
-    const joinButton = document.getElementById("join")
+    const joinButton = document.getElementById("join") as HTMLDivElement
     joinButton!.id = "ready"
     joinButton!.innerHTML = "ready"
 
-    const createButton = document.getElementById("create")
+    const createButton = document.getElementById("create") as HTMLDivElement
     createButton!.id = "leave"
     createButton!.innerHTML = "leave lobby"
-
-    spawnCars(playerList)
 }
 
 //fun sceneSetup()
@@ -182,11 +202,16 @@ function sceneSetup(): void {
     scene.add(spotlight)
 }
 
+socket.on("lobbyRefresh", (playerList) => {
+    spawnCars(playerList)
+})
+
 //fun - spawnCars()
 function spawnCars(playerList: Player[]): void {
     scene.clear()
     sceneSetup()
 
+    cars.others = []
     playerList.forEach((player: Player, idx: number) => {
         const newCar = new carLobbyVisual(player.id, player.carVisuals.model)
         newCar.mesh.position.y = 0.33
@@ -194,18 +219,58 @@ function spawnCars(playerList: Player[]): void {
         newCar.mesh.position.z = (Math.random() - 0.5) * 0.2
         setCarColor(player.carVisuals.color, newCar)
 
-        if (socket.id == socket.id) ownCar = newCar
+        if (player.id == socket.id) { cars.own = newCar }
+        else { cars.others.push(newCar) }
 
         scene.add(newCar.mesh)
     })
+
+    controls.target.set((playerList.length - 1) * 3 / 2, 0, 0)    
 }
+
+socket.on("RESvisibleChange", ({playerList, change}) => {
+    if (change === "color") {
+        playerList.forEach((player: Player) => {
+            if (player.id == socket.id) return
+
+            const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
+            console.log(cars.others)
+            cars.others[idx]!.setColor(player.carVisuals.color)
+        })
+    } else if (change === "wheels") {
+        playerList.forEach((player: Player) => {
+            
+            if (player.id == socket.id) return
+
+            const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
+
+            cars.others[idx]!.wheelMesh[0]!.rotation.y = player.currentSteer
+            cars.others[idx]!.wheelMesh[1]!.rotation.y = player.currentSteer
+
+            cars.others[idx]!.wheelMesh[2]!.rotation.x = player.currentSpeed
+            cars.others[idx]!.wheelMesh[3]!.rotation.x = player.currentSpeed
+        })
+    }
+})
 
 ///fun// setCarModel()
 
 //fun - setCarColor()
-export function setCarColor(color: THREE.ColorRepresentation, target: carLobbyVisual = ownCar): void {
+export function setCarColor(color: THREE.ColorRepresentation, target: carLobbyVisual = cars.own!): void {
     target.setColor(color)
-    if (target.id == socket.id) currentCarVisuals.color = color
+    if (target.id == socket.id) {
+        currentCarVisuals.color = color
+        updateInfos()
+    }
+
+    if (inLobby) {
+
+        //socket_Out - REQvisibleChange
+        socket.emit("REQvisibleChange", {
+            carVisuals: currentCarVisuals,
+            change: "color"
+        })
+    }
 }
 
 //fun - createLobby()
@@ -228,6 +293,11 @@ export async function joinLobby(code: string): Promise<boolean> {
 
     //socket_IO - joinLobby
     const res = await socket.emitWithAck("joinLobby", {code: code, carVisuals: currentCarVisuals})
+
+    topRightInfo.code = code
+    inLobby = true
+    updateInfos()
+
     joinedLobby(res.playerList)
 
     return true

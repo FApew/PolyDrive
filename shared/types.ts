@@ -5,7 +5,8 @@ export type GameConfig = {
     game: {
         default_fps: number
         physics_fps: number
-        codes_lenght: 5
+        codes_lenght: number
+        username_lenght: number
     }
 
     debug: {
@@ -175,4 +176,10 @@ export type Lobby = {
     leader: string,
     playerList: Player[],
     state: "lobby" | "running"
+}
+
+export type TopRightInfo = {
+    username: string,
+    code: string,
+    carVisuals: CarVisuals
 }

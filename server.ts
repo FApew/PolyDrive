@@ -64,8 +64,17 @@ function leaveLobby(id: string): void {
     if (code && lobbyRecord[code]) {
 
         const playerList = lobbyRecord[code].playerList
+
         const idx = playerList.findIndex((player) => {return player.id == id})
         playerList.splice(idx, 1)
+        delete playerRecord[id]
+
+        const playerIDsList = playerList.map((obj) => {return obj.id})
+        if (playerIDsList.length > 0) {
+            if (lobbyRecord[code].leader == id) { lobbyRecord[code].leader = playerIDsList[0]! }
+
+            io.to(playerIDsList).emit("lobbyRefresh", playerList)
+        }
 
         console.log("User", id, "left", code)
         if (playerList.length == 0) {
@@ -112,7 +121,13 @@ io.on("connection", (socket) => {
         joinLobby(socket.id, carVisuals, code)
         
         console.log("User", socket.id, "joined", code)
-        ack({playerList: lobbyRecord[code]!.playerList})
+
+        const playerList = lobbyRecord[code]!.playerList
+
+        const playerIDsList = playerList.map((obj) => {return obj.id})
+        io.to(playerIDsList).emit("lobbyRefresh", playerList)
+
+        ack({playerList: playerList})
     })
 
     //socket_IO - checkCode
@@ -120,6 +135,37 @@ io.on("connection", (socket) => {
         const res = lobbyRecord[code] ? true : false
         console.log("Code", code, "checked:", res)
         ack(res)
+    })
+
+    //socket_In - REQvisibleChange
+    socket.on("REQvisibleChange", ({carVisuals, change}) => {
+        const code = playerRecord[socket.id]
+        if (code && lobbyRecord[code]) {
+
+            const playerList = lobbyRecord[code].playerList
+            const idx = playerList.findIndex((player) => {return player.id == socket.id})
+
+            playerList[idx]!.carVisuals = carVisuals
+
+            const playerIDsList = playerList.map((obj) => {return obj.id})
+            io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: change}))
+        }
+    })
+
+    //socket_In - REQwheelsUpdate
+    socket.on("REQwheelsUpdate", ({currentSpeed, currentSteer}) => {
+        const code = playerRecord[socket.id]
+        if (code && lobbyRecord[code]) {
+
+            const playerList = lobbyRecord[code].playerList
+            const idx = playerList.findIndex((player) => {return player.id == socket.id})
+
+            playerList[idx]!.currentSpeed = currentSpeed
+            playerList[idx]!.currentSteer = currentSteer
+
+            const playerIDsList = playerList.map((obj) => {return obj.id})
+            io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "wheels"}))
+        }
     })
     
     //socket_In - disconnect

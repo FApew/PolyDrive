@@ -13,7 +13,7 @@
   "license": "ISC",
   "author": "fapew",
   "type": "module",
-  "main": "server.js",
+  "main": "server.ts",
   "scripts": {
     "dev": "npx vite --host",
     "server": "nodemon --watch server.ts --watch shared --exec tsx server.ts",
