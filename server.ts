@@ -69,7 +69,7 @@ function leaveLobby(id: string): void {
         playerList.splice(idx, 1)
         delete playerRecord[id]
 
-        const playerIDsList = playerList.map((obj) => {return obj.id})
+        const playerIDsList = playerList.map((obj) => {return obj.id!})
         if (playerIDsList.length > 0) {
             if (lobbyRecord[code].leader == id) { lobbyRecord[code].leader = playerIDsList[0]! }
 
@@ -124,7 +124,7 @@ io.on("connection", (socket) => {
 
         const playerList = lobbyRecord[code]!.playerList
 
-        const playerIDsList = playerList.map((obj) => {return obj.id})
+        const playerIDsList = playerList.map((obj) => {return obj.id!})
         io.to(playerIDsList).emit("lobbyRefresh", playerList)
 
         ack({playerList: playerList})
@@ -147,7 +147,7 @@ io.on("connection", (socket) => {
 
             playerList[idx]!.carVisuals = carVisuals
 
-            const playerIDsList = playerList.map((obj) => {return obj.id})
+            const playerIDsList = playerList.map((obj) => {return obj.id!})
             io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: change}))
         }
     })
@@ -163,7 +163,7 @@ io.on("connection", (socket) => {
             playerList[idx]!.throttle = throttle
             playerList[idx]!.steer = steer
 
-            const playerIDsList = playerList.map((obj) => {return obj.id})
+            const playerIDsList = playerList.map((obj) => {return obj.id!})
             io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "wheels"}))
         }
     })

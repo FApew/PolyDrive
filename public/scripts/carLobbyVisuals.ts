@@ -9,12 +9,14 @@ const loader = new GLTFLoader()
 const models: Partial<Record<CarModelName | "tire", THREE.Group>> = {}
 
 //Car Models
-const [ giuliaGLTF, tireGLTF ] = await Promise.all([
+const [ giuliaGLTF, f40GLTF, tireGLTF ] = await Promise.all([
     loader.loadAsync("../assets/models/giulia.glb"),
+    loader.loadAsync("../assets/models/f40.glb"),
     loader.loadAsync("../assets/models/tire.glb")
 ])
 
 models["giulia"] = giuliaGLTF.scene
+models["f40"] = f40GLTF.scene
 models["tire"] = tireGLTF.scene
 
 //CLASS - carLobbyVisual
@@ -56,12 +58,16 @@ export class carLobbyVisual {
                 const wheel = models["tire"]!.clone(true)
                 const wheelPos: Vec3 = config.car.models[model].wheel_pos
                 wheel.position.set(wheelPos.x * j, wheelPos.y, wheelPos.z * i)
+
+                const s = config.car.models[model].wheel_size
+                wheel.scale.set(s, s, s)
                 
                 this.wheelMesh.push(wheel)
                 carGroup.add(wheel)
             }
         }
 
+        carGroup.position.y = 0.33 * config.car.models[model].wheel_size
         this.mesh = carGroup
     }
 
@@ -101,7 +107,7 @@ export class carLobbyVisual {
 
     updateWheels(dt: number): void {
         this.currentWheelsSpeed = THREE.MathUtils.lerp(
-            this.currentWheelsSpeed, this.throttle * 0.1, 1 - Math.exp(-5 * dt / 1000)
+            this.currentWheelsSpeed, this.throttle * 0.02 * dt, 1 - Math.exp(-5 * dt / 1000)
         )
 
         const currentSteer = THREE.MathUtils.lerp(

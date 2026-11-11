@@ -58,7 +58,7 @@ export type GameConfig = {
     car: {
         camera_follow_smoothness: number
 
-        models: {giulia: CarModel}
+        models: {giulia: CarModel, f40: CarModel}
 
         tuning: { f1: CarTune }
     }
@@ -115,7 +115,7 @@ export type TrackTune = {
     max_curve_angle: number
 }
 
-export type CarModelName = "giulia"
+export type CarModelName = "giulia" | "f40"
 
 export type CarVisuals = {
     model: CarModelName,
@@ -124,6 +124,8 @@ export type CarVisuals = {
 
 export type CarModel = {
     wheel_pos: Vec3
+    wheel_size: number
+    default_color: THREE.ColorRepresentation
     elevation: number
 }
 
@@ -166,7 +168,7 @@ export type CarTune = {
 }
 
 export type LobbyPlayer = {
-    id: string,
+    id: string | undefined,
     carVisuals: CarVisuals
     throttle: number,
     steer: number

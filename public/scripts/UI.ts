@@ -1,10 +1,11 @@
 import * as THREE from "three"
 import iro from "@jaames/iro"
 
-import { defaultColor, setCarColor, createLobby, leaveLobby, joinLobby, topRightInfo } from "./main"
+import { currentCarVisuals, setCarColor, createLobby, leaveLobby, joinLobby, topRightInfo, changeModel } from "./main"
 
 import { config } from "../../shared/YAMLConfigs"
-import { code } from "three/tsl"
+import { imgs, modelList } from "./assetsLoader"
+import type { CarModelName } from "../../shared/types"
 
 //note - HTML Elements
 const join_ready = document.getElementById("join") as HTMLDivElement
@@ -44,7 +45,7 @@ create_leave.addEventListener("click", (e) => {
 //NOTE - "customize" Events
 customize.addEventListener("click", () => {
     if (firstCustomize == true) {
-        lastColor = defaultColor
+        lastColor = currentCarVisuals.color
         firstCustomize = false
     }
 
@@ -100,10 +101,38 @@ async function updateSideBar(): Promise<void> {
         sideBar.appendChild(modelSliderLabel)
 
         //note - modelSlider Creation
+
+        const modelOuterBox = document.createElement("div")
+        modelOuterBox.id = "modelOuterBox"
+
         const modelSlider = document.createElement("div")
         modelSlider.id = "modelSlider"
 
-        sideBar.appendChild(modelSlider)
+        modelList.forEach((model: CarModelName) => {
+            const elm = document.createElement("div")
+            elm.classList.add("modelSelect")
+
+            elm.addEventListener("click", () => {
+                changeModel(model)
+            })
+            
+            const logo = document.createElement("div")
+            logo.classList.add("carLogo")
+            logo.style.backgroundImage = `url(${imgs[model]})`
+
+            elm.appendChild(logo)
+
+            const label = document.createElement("div")
+            label.classList.add("logoLabel")
+            label.innerHTML = model
+
+            elm.appendChild(label)
+
+            modelSlider.appendChild(elm)
+        })
+
+        modelOuterBox.appendChild(modelSlider)
+        sideBar.appendChild(modelOuterBox)
 
         //note - colorPickerLabel Creation
         const colorPickerLabel = document.createElement("div")

@@ -2,19 +2,30 @@ import * as THREE from "three"
 import Stats from "stats.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList } from "../../shared/types"
+import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModel, CarModelName } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
 import { carLobbyVisual } from "./carLobbyVisuals"
+import { modelList } from "./assetsLoader"
 import { updateInfos } from "./UI"
 
-export let defaultColor: THREE.ColorRepresentation
-
 let lobbyInitCheck: boolean = false
-const currentCarVisuals: CarVisuals = {model: "giulia", color: 0x000000}
 let inLobby = false
 
-let cars: LobbyCarList = { own: undefined, others: []}
+const cars: LobbyCarList = { own: undefined, others: [] }
+
+const model = modelList[Math.floor(Math.random() * modelList.length)]
+export const currentCarVisuals: CarVisuals = {
+    model: model!, 
+    color: config.car.models[model!].default_color
+}
+
+const currentPlayer: LobbyPlayer = {
+    id: undefined,
+    carVisuals: currentCarVisuals,
+    throttle: 0,
+    steer: 0
+}
 
 export const topRightInfo: TopRightInfo = {
     username: "",
@@ -41,6 +52,7 @@ socket.on("pong", (time: number) => {
 //socket_In - Init
 socket.on("Init", async () => {
     if (lobbyInitCheck) return
+    currentPlayer.id = socket.id
     await lobbyInit()
     updateInfos()
 
@@ -110,16 +122,10 @@ async function lobbyInit(): Promise<void> {
         renderer.setSize(window.innerWidth, window.innerHeight)
     })    
 
-    sceneSetup()
-
     //note - Car Init
-    cars.own = new carLobbyVisual(socket.id!, "giulia")
-    
-    cars.own.mesh.position.y = 0.33
-    scene.add(cars.own.mesh)
+    spawnCars([currentPlayer])
 
-    defaultColor = cars.own.getDefaultColor()
-    currentCarVisuals.color = defaultColor
+    console.log(cars.own!.getDefaultColor())
 
     let lastThrottle = 0, lastSteer = 0
     let pt = -1
@@ -173,7 +179,7 @@ async function joinedLobby(playerList: LobbyPlayer[]): Promise<void> {
 }
 
 //fun sceneSetup()
-function sceneSetup(): void {
+function sceneSetup(light: boolean = true): void {
     //Plane
     const planeGeo = new THREE.PlaneGeometry(100, 100)
     const planeMat = new THREE.MeshStandardMaterial({
@@ -185,16 +191,19 @@ function sceneSetup(): void {
     scene.add(plane)
 
     //Lighting
+    
     const ambient = new THREE.AmbientLight(0xffffff, 1)
     scene.add(ambient)
 
-    const spotlight = new THREE.SpotLight( 0xffffff, 150)
-    spotlight.penumbra = 1
-    spotlight.decay = 2
-    spotlight.distance = 0
-    spotlight.position.set(0, 10, 0)
-    spotlight.lookAt(0, 0, 0)
-    scene.add(spotlight)
+    if (light) {
+        const spotlight = new THREE.SpotLight( 0xffffff, 150)
+        spotlight.penumbra = 1
+        spotlight.decay = 2
+        spotlight.distance = 0
+        spotlight.position.set(0, 10, 0)
+        spotlight.lookAt(0, 0, 0)
+        scene.add(spotlight)
+    }
 }
 
 socket.on("lobbyRefresh", (playerList) => {
@@ -204,14 +213,14 @@ socket.on("lobbyRefresh", (playerList) => {
 //fun - spawnCars()
 function spawnCars(playerList: LobbyPlayer[]): void {
     scene.clear()
-    sceneSetup()
+    sceneSetup(false)
 
     cars.others = []
     playerList.forEach((player: LobbyPlayer, idx: number) => {
-        const newCar = new carLobbyVisual(player.id, player.carVisuals.model)
-        newCar.mesh.position.y = 0.33
-        newCar.mesh.position.x = 3 * idx + (Math.random() - 0.5) * 0.2
-        newCar.mesh.position.z = (Math.random() - 0.5) * 0.2
+        const newCar = new carLobbyVisual(player.id!, player.carVisuals.model)
+        const x = 3 * idx + (Math.random() - 0.5) * 0.2, z = (Math.random() - 0.5) * 0.2
+        newCar.mesh.position.x = x
+        newCar.mesh.position.z = z
         setCarColor(player.carVisuals.color, newCar)
 
         if (player.id == socket.id) { cars.own = newCar }
@@ -220,11 +229,22 @@ function spawnCars(playerList: LobbyPlayer[]): void {
         }
 
         scene.add(newCar.mesh)
+
+        const spotlight = new THREE.SpotLight( 0xffffff, 150)
+        spotlight.penumbra = 1
+        spotlight.decay = 2
+        spotlight.distance = 0
+        spotlight.position.set(x, 10, z)
+        spotlight.lookAt(x, 0, z)
+        scene.add(spotlight)
     })
 
     controls.target.set((playerList.length - 1) * 3 / 2, 0, 0)    
+    controls.minDistance = config.lobby.orbit_constraints.zoom.min * playerList.length
+    controls.maxDistance = controls.minDistance + (config.lobby.orbit_constraints.zoom.max - config.lobby.orbit_constraints.zoom.min)
 }
 
+//socket_In - RESvisibleChange
 socket.on("RESvisibleChange", ({playerList, change}) => {
     if (change === "color") {
         playerList.forEach((player: LobbyPlayer) => {
@@ -234,7 +254,6 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
             cars.others[idx]!.setColor(player.carVisuals.color)
         })
     } else if (change === "wheels") {
-        console.log("reqRes")
         playerList.forEach((player: LobbyPlayer) => {
             
             if (player.id == socket.id) return
@@ -244,10 +263,26 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
             cars.others[idx]!.throttle = player.throttle
             cars.others[idx]!.steer = player.steer
         })
+    } else if (change === "model") {
+        spawnCars(playerList)
     }
 })
 
-///fun// setCarModel()
+///fun changeModel()
+export function changeModel(model: CarModelName): void {
+    currentCarVisuals.model = model
+    currentCarVisuals.color = config.car.models[model].default_color
+    updateInfos()
+
+    if (inLobby) {
+        //socket_Out - REQvisibleChange
+        socket.emit("REQvisibleChange", {
+            carVisuals: currentCarVisuals,
+            change: "model"
+        })
+    } else { spawnCars([currentPlayer]) } 
+    
+}
 
 //fun - setCarColor()
 export function setCarColor(color: THREE.ColorRepresentation, target: carLobbyVisual = cars.own!): void {

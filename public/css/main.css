@@ -206,6 +206,71 @@ body {
     content: "";
 }
 
+#modelOuterBox {
+    position: relative;
+    width: 100%;
+    height: 100%;
+
+    overflow-y: scroll;
+    padding: 2vh 3vh;
+    box-sizing: border-box;
+}
+
+#modelSlider {
+    position: relative;
+    width: 100%;
+    height: max-content;
+
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: 2vh;
+    box-sizing: border-box;
+}
+
+.modelSelect {
+    position: relative;
+    width: 100%;
+    height: max-content;
+
+    padding: 1vh;
+    box-sizing: border-box;
+
+    border: 2px solid #fff;
+    border-radius: 0 20px;
+
+    transition: 0.2s all ease;
+
+    cursor: pointer;
+}
+
+.modelSelect:hover {
+    transform: scale(0.95);
+}
+
+.carLogo {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.logoLabel {
+    position: relative;
+    width: 100%;
+    height: 4vh;
+
+    color: #fff;
+    font-family: "Sans";
+    font-size: 2vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 #colorPicker {
     position: relative;
     width: 100%;
@@ -276,4 +341,34 @@ body {
     color: #ffffff50;
     font-family: "Sans";
     font-size: 3vh;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background-color: #00000000;
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #ffffff40;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  border-radius: 3px;
+  min-height: 40px;
+  min-width: 40px;
+}
+
+*::-webkit-scrollbar-button { 
+    display: none;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #ffffff40 #00000000;
+  }
 }
