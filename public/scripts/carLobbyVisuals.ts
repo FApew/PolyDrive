@@ -23,10 +23,16 @@ models["tire"] = tireGLTF.scene
 export class carLobbyVisual {
     id: string
     mesh: THREE.Group
+
     chassis: THREE.Group
     wheelMesh: THREE.Group[] = []
+
+    headlights: THREE.SpotLight[] = []
+    backlights: THREE.SpotLight[] = []
+
     throttle: number = 0
     steer: number = 0
+    lights: boolean = false
     currentWheelsSpeed: number = 0
 
     //fun - constructor()
@@ -38,13 +44,32 @@ export class carLobbyVisual {
         //note - Chassis
         const carChassis = models[model]!.clone(true)
 
-        carChassis.traverse(child => {
+        carChassis.traverse((child) => {
             if (child instanceof THREE.Mesh) {
                 if (Array.isArray(child.material)) {
                     child.material = child.material.map(mat => mat.clone())
                 } else {
                     child.material = child.material.clone()
                 }
+
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+                materials.forEach((mat) => {
+                    if (mat instanceof THREE.MeshStandardMaterial) {
+                        switch (mat.name) {
+                            case "headlights": {
+                                mat.emissive.set(0xffffff)
+                                mat.emissiveIntensity = 3
+                                break
+                            }
+                            case "backlights": {
+                                mat.emissive.set(0xff0000)
+                                mat.emissiveIntensity = 3
+                                break
+                            }
+                        }
+                    }
+                })
             }
         })
 
@@ -67,12 +92,61 @@ export class carLobbyVisual {
             }
         }
 
+        //note Headlights
+        for (const i of [1, -1]) {
+            const spotlight = new THREE.SpotLight(
+                0xffffff,
+                70,
+                40,
+                Math.PI / 3,
+                0.5,
+                2
+            )
+
+            const vec3 = config.car.models[model].headlights_pos
+            spotlight.position.set(vec3.x * i, vec3.y, vec3.z)
+            spotlight.target.position.set(vec3.x * i, vec3.y, vec3.z + 12)
+
+            carGroup.add(spotlight)
+            carGroup.add(spotlight.target)
+
+            this.headlights.push(spotlight)
+        }
+
+        //note Backlights
+        for (const i of [1, -1]) {
+            const spotlight = new THREE.SpotLight(
+                0xff0000,
+                10,
+                40,
+                Math.PI / 2.3,
+                0.5,
+                2
+            )
+
+            const vec3 = config.car.models[model].backlights_pos
+            spotlight.position.set(vec3.x * i, vec3.y, vec3.z)
+            spotlight.target.position.set(vec3.x * i, vec3.y, vec3.z - 12)
+
+            carGroup.add(spotlight)
+            carGroup.add(spotlight.target)
+            
+
+            this.backlights.push(spotlight)
+        }
+
         carGroup.position.y = 0.33 * config.car.models[model].wheel_size
+
+        carGroup.traverse((child) => {
+            if (child instanceof THREE.Mesh) child.castShadow = true
+        })
+
+        this.updateLights()
         this.mesh = carGroup
     }
 
     //fun - getDefaultColor()
-    getDefaultColor(): number {
+    getDefaultColor(): THREE.ColorRepresentation {
         let color = 0xffffff
 
         this.chassis.traverse((child) => {
@@ -118,5 +192,29 @@ export class carLobbyVisual {
         this.wheelMesh[1]!.rotation.y = currentSteer
         this.wheelMesh[2]!.rotateX(this.currentWheelsSpeed)
         this.wheelMesh[3]!.rotateX(this.currentWheelsSpeed)
+    }
+
+    updateLights(): void {
+        this.chassis.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                const materials = Array.isArray(child.material) ? child.material : [child.material]
+
+                materials.forEach((mat) => {
+                    if (mat instanceof THREE.MeshStandardMaterial) {
+                        if (mat.name == "headlights" || mat.name == "backlights") {
+                            mat.emissiveIntensity = this.lights ? 3 : 0
+                        }
+                    }
+                })
+            }
+        })
+
+        this.headlights.forEach((light) => {
+            light.visible = this.lights
+        })
+
+        this.backlights.forEach((light) => {
+            light.visible = this.lights
+        })
     }
 }

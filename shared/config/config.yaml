@@ -1,6 +1,9 @@
 game:
   default_fps: 240
   physics_fps: 120
+
+  shadow_quality: 4096
+
   codes_length: 5
   username_lenght: 20
 
@@ -33,14 +36,24 @@ car:
 
   models:
     giulia:
-      wheel_pos: {x: -0.762, y: 0, z: 1.4}
       wheel_size: 1
-      default_color: 0x02b980
+      wheel_pos: {x: -0.762, y: 0, z: 1.4}
+
+      headlights_pos: {x: 0.639, y: 0.35, z: 2.1}
+      backlights_pos: {x: 0.591, y: 0.44, z: -2.06}
+      
+      default_color: 0x218560
+
       elevation: 0
     f40:
-      wheel_pos: {x: -0.81, y: 0, z: 1.225}
       wheel_size: 1.05
+      wheel_pos: {x: -0.81, y: 0, z: 1.225}
+
+      headlights_pos: {x: 0.805, y: 0.212, z: 2.14}
+      backlights_pos: {x: 0.613, y: 0.341, z: -2.085}
+      
       default_color: 0xff2800
+
       elevation: 0
 
   tuning:

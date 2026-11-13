@@ -6,6 +6,7 @@ import { currentCarVisuals, setCarColor, createLobby, leaveLobby, joinLobby, top
 import { config } from "../../shared/YAMLConfigs"
 import { imgs, modelList } from "./assetsLoader"
 import type { CarModelName } from "../../shared/types"
+import type { IroColorPicker } from "@jaames/iro/dist/ColorPicker"
 
 //note - HTML Elements
 const join_ready = document.getElementById("join") as HTMLDivElement
@@ -19,7 +20,7 @@ const topRightInfoElement = document.getElementById("topRightInfo") as HTMLDivEl
 //Global Vars
 let sideBarVal = 0, lastSideBarVal = 0
 let firstCustomize = true
-let lastColor: THREE.ColorRepresentation //Cool Colors: #b03c40 #735bc2 #10713b
+let lastColor: THREE.ColorRepresentation //Cool Colors: #b03c40 #735bc2 #10713b #525aff
 
 //NOTE "JOIN & READY" Events
 join_ready.addEventListener("click", async (e) => {
@@ -108,29 +109,6 @@ async function updateSideBar(): Promise<void> {
         const modelSlider = document.createElement("div")
         modelSlider.id = "modelSlider"
 
-        modelList.forEach((model: CarModelName) => {
-            const elm = document.createElement("div")
-            elm.classList.add("modelSelect")
-
-            elm.addEventListener("click", () => {
-                changeModel(model)
-            })
-            
-            const logo = document.createElement("div")
-            logo.classList.add("carLogo")
-            logo.style.backgroundImage = `url(${imgs[model]})`
-
-            elm.appendChild(logo)
-
-            const label = document.createElement("div")
-            label.classList.add("logoLabel")
-            label.innerHTML = model
-
-            elm.appendChild(label)
-
-            modelSlider.appendChild(elm)
-        })
-
         modelOuterBox.appendChild(modelSlider)
         sideBar.appendChild(modelOuterBox)
 
@@ -154,7 +132,7 @@ async function updateSideBar(): Promise<void> {
         colorPicker.appendChild(iroJSbox)
 
         const pickerWidth = iroJSbox.clientWidth * 0.8
-        const hex = `#${(lastColor).toString(16).padStart(6, "0")}`;
+        const hex = `#${(lastColor).toString(16).padStart(6, "0")}`
 
         //note - iroJS Picker
         const picker: iro.ColorPicker = iro.ColorPicker("#iroJSbox", {
@@ -178,6 +156,32 @@ async function updateSideBar(): Promise<void> {
 
         picker.on("color:change", (color: iro.Color) => {
             updateColorUI(color)
+        })
+
+        modelList.forEach((model: CarModelName) => {
+            const elm = document.createElement("div")
+            elm.classList.add("modelSelect")
+
+            elm.addEventListener("click", () => {
+                const color = config.car.models[model].default_color
+                picker.color.set(new iro.Color(`#${(color).toString(16).padStart(6, "0")}`))
+                updateColorUI(picker.color)
+                changeModel(model)
+            })
+            
+            const logo = document.createElement("div")
+            logo.classList.add("carLogo")
+            logo.style.backgroundImage = `url(${imgs[model]})`
+
+            elm.appendChild(logo)
+
+            const label = document.createElement("div")
+            label.classList.add("logoLabel")
+            label.innerHTML = model
+
+            elm.appendChild(label)
+
+            modelSlider.appendChild(elm)
         })
 
         //fun - updateColorUI()

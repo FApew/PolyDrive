@@ -6,6 +6,9 @@ export type GameConfig = {
     game: {
         default_fps: number
         physics_fps: number
+
+        shadow_quality: number
+
         codes_lenght: number
         username_lenght: number
     }
@@ -123,9 +126,14 @@ export type CarVisuals = {
 }
 
 export type CarModel = {
-    wheel_pos: Vec3
     wheel_size: number
+    wheel_pos: Vec3
+
+    headlights_pos: Vec3
+    backlights_pos: Vec3
+    
     default_color: THREE.ColorRepresentation
+
     elevation: number
 }
 
@@ -171,7 +179,8 @@ export type LobbyPlayer = {
     id: string | undefined,
     carVisuals: CarVisuals
     throttle: number,
-    steer: number
+    steer: number,
+    lights: boolean
 }
 
 export type Lobby = {

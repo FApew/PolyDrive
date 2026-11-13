@@ -51,7 +51,8 @@ function joinLobby(id: string, carVisuals: CarVisuals, code: string): void {
         id: id,
         carVisuals: carVisuals,
         throttle: 0,
-        steer: 0
+        steer: 0,
+        lights: false
     }
 
     lobbyRecord[code]!.playerList.push(newPlayer)
@@ -118,6 +119,7 @@ io.on("connection", (socket) => {
 
     //socket_IO - joinLobby
     socket.on("joinLobby", ({code, carVisuals}: {code: string, carVisuals: CarVisuals}, ack) => {
+        if (lobbyRecord[code] == undefined) createLobby(socket.id, code)
         joinLobby(socket.id, carVisuals, code)
         
         console.log("User", socket.id, "joined", code)
@@ -153,7 +155,7 @@ io.on("connection", (socket) => {
     })
 
     //socket_In - REQwheelsUpdate
-    socket.on("REQwheelsUpdate", ({throttle, steer}) => {
+    socket.on("REQcarUpdate", ({throttle, steer, lights}) => {
         const code = playerRecord[socket.id]
         if (code && lobbyRecord[code]) {
 
@@ -162,9 +164,10 @@ io.on("connection", (socket) => {
 
             playerList[idx]!.throttle = throttle
             playerList[idx]!.steer = steer
+            playerList[idx]!.lights = lights
 
             const playerIDsList = playerList.map((obj) => {return obj.id!})
-            io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "wheels"}))
+            io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "input"}))
         }
     })
     

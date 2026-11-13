@@ -24,7 +24,8 @@ const currentPlayer: LobbyPlayer = {
     id: undefined,
     carVisuals: currentCarVisuals,
     throttle: 0,
-    steer: 0
+    steer: 0,
+    lights: false
 }
 
 export const topRightInfo: TopRightInfo = {
@@ -32,6 +33,8 @@ export const topRightInfo: TopRightInfo = {
     code: "",
     carVisuals: currentCarVisuals
 }
+
+const params = new URLSearchParams(window.location.search)
 
 //NOTE - Socket Init
 import { io } from "socket.io-client"
@@ -57,6 +60,17 @@ socket.on("Init", async () => {
     updateInfos()
 
     lobbyInitCheck = true
+
+    //note - URL code param
+    const code = params.get("code")
+    if (code) {
+        if (!isLobbyCode(code)) {
+            params.delete("code")
+            updateUrl()
+        } else {
+            joinLobby(code, false)
+        }
+    }
 })
 
 //NOTE - KeyPress Listener
@@ -91,6 +105,8 @@ async function lobbyInit(): Promise<void> {
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFShadowMap
     document.body.appendChild(renderer.domElement)
 
     //note - Controls Init
@@ -125,9 +141,7 @@ async function lobbyInit(): Promise<void> {
     //note - Car Init
     spawnCars([currentPlayer])
 
-    console.log(cars.own!.getDefaultColor())
-
-    let lastThrottle = 0, lastSteer = 0
+    let lastThrottle = 0, lastSteer = 0, lastLights = false
     let pt = -1
 
     //fun - renderLoop()
@@ -143,9 +157,15 @@ async function lobbyInit(): Promise<void> {
 
         const steer = (keys["a"] ? 1 : 0) - (keys["d"] ? 1 : 0)
         cars.own!.steer = steer
+
+        const lights = keys["l"] ? true : false
+        cars.own!.lights = lights
+        cars.own!.updateLights()
         
-        if ((lastThrottle != throttle || lastSteer != steer) && inLobby) {
-            socket.emit("REQwheelsUpdate", {throttle: throttle, steer: steer})
+        if ((lastThrottle != throttle || lastSteer != steer || lastLights != lights) && inLobby) {
+
+            //socket_Out - REQcarUpdate
+            socket.emit("REQcarUpdate", {throttle: throttle, steer: steer, lights: lights})
         }
 
         cars.own!.updateWheels(dt)
@@ -159,6 +179,7 @@ async function lobbyInit(): Promise<void> {
         pt = ct
         lastThrottle = throttle
         lastSteer = steer
+        lastLights = lights
         stats.end()
     }
     requestAnimationFrame(renderLoop)
@@ -184,9 +205,10 @@ function sceneSetup(light: boolean = true): void {
     const planeGeo = new THREE.PlaneGeometry(100, 100)
     const planeMat = new THREE.MeshStandardMaterial({
         color: 0x141414,
-        roughness: 1
+        roughness: 0.9
     })
     const plane = new THREE.Mesh(planeGeo, planeMat)
+    plane.receiveShadow = true
     plane.rotateX(-Math.PI / 2)
     scene.add(plane)
 
@@ -195,15 +217,7 @@ function sceneSetup(light: boolean = true): void {
     const ambient = new THREE.AmbientLight(0xffffff, 1)
     scene.add(ambient)
 
-    if (light) {
-        const spotlight = new THREE.SpotLight( 0xffffff, 150)
-        spotlight.penumbra = 1
-        spotlight.decay = 2
-        spotlight.distance = 0
-        spotlight.position.set(0, 10, 0)
-        spotlight.lookAt(0, 0, 0)
-        scene.add(spotlight)
-    }
+    if (light) spawnSpotlight(0, 0)
 }
 
 socket.on("lobbyRefresh", (playerList) => {
@@ -230,18 +244,31 @@ function spawnCars(playerList: LobbyPlayer[]): void {
 
         scene.add(newCar.mesh)
 
-        const spotlight = new THREE.SpotLight( 0xffffff, 150)
-        spotlight.penumbra = 1
-        spotlight.decay = 2
-        spotlight.distance = 0
-        spotlight.position.set(x, 10, z)
-        spotlight.lookAt(x, 0, z)
-        scene.add(spotlight)
+        spawnSpotlight(x, z)
     })
 
     controls.target.set((playerList.length - 1) * 3 / 2, 0, 0)    
     controls.minDistance = config.lobby.orbit_constraints.zoom.min * playerList.length
     controls.maxDistance = controls.minDistance + (config.lobby.orbit_constraints.zoom.max - config.lobby.orbit_constraints.zoom.min)
+}
+
+//fun - spawnSpotlight()
+function spawnSpotlight(x: number, z: number): void {
+    const spotlight = new THREE.SpotLight( 0xffffff, 150)
+    spotlight.penumbra = 1
+    spotlight.decay = 2
+    spotlight.distance = 0
+    
+    spotlight.castShadow = true
+    spotlight.shadow.mapSize.set(config.game.shadow_quality, config.game.shadow_quality)
+    spotlight.shadow.camera.near = 0.5
+    spotlight.shadow.camera.far = 50
+    spotlight.shadow.bias = -0.0001
+    spotlight.shadow.normalBias = 0.02
+
+    spotlight.position.set(x, 10, z)
+    spotlight.lookAt(x, 0, z)
+    scene.add(spotlight)
 }
 
 //socket_In - RESvisibleChange
@@ -253,7 +280,7 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
             const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
             cars.others[idx]!.setColor(player.carVisuals.color)
         })
-    } else if (change === "wheels") {
+    } else if (change === "input") {
         playerList.forEach((player: LobbyPlayer) => {
             
             if (player.id == socket.id) return
@@ -262,6 +289,9 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
 
             cars.others[idx]!.throttle = player.throttle
             cars.others[idx]!.steer = player.steer
+
+            cars.others[idx]!.lights = player.lights
+            cars.others[idx]!.updateLights()
         })
     } else if (change === "model") {
         spawnCars(playerList)
@@ -312,13 +342,16 @@ export async function createLobby(): Promise<void> {
 
 //fun - leaveLobby()
 export function leaveLobby(): void {
+    params.delete("code")
+    updateUrl()
     location.reload()
 }
 
 //fun - joinLobby()
-export async function joinLobby(code: string): Promise<boolean> {
+export async function joinLobby(code: string, codeCheck: boolean = true): Promise<boolean> {
     //socket_IO - checkCode
-    if (!await socket.emitWithAck("checkCode", code)) { return false }
+    if (!isLobbyCode(code)) {return false}
+    if (!await socket.emitWithAck("checkCode", code) && codeCheck) { return false }
 
     //socket_IO - joinLobby
     const res = await socket.emitWithAck("joinLobby", {code: code, carVisuals: currentCarVisuals})
@@ -327,7 +360,29 @@ export async function joinLobby(code: string): Promise<boolean> {
     inLobby = true
     updateInfos()
 
+    params.set("code", code)
+    updateUrl()
+
     joinedLobby(res.playerList)
 
     return true
+}
+
+//fun - isLobbyCode()
+function isLobbyCode(value: string): boolean {
+    return /^[A-Z0-9]{5}$/.test(value)
+}
+
+//fun - updateUrl()
+function updateUrl(): void {
+    const url = new URL(window.location.href)
+    const code = params.get("code")
+
+    if (code) {
+        url.searchParams.set("code", code)
+    } else {
+        url.searchParams.delete("code")
+    }
+
+    window.history.replaceState({}, "", url)
 }
