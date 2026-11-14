@@ -1,43 +1,71 @@
 import * as THREE from "three"
+import { SoundTouchNode } from "@soundtouchjs/audio-worklet"
+import processorUrl from "@soundtouchjs/audio-worklet/processor?url"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
 import type { Vec3, CarModelName } from "../../shared/types"
 import { config } from "../../shared/YAMLConfigs"
+import { EngineAudio } from "./engineAudio"
 
 //note - GLTF Loader
-const loader = new GLTFLoader()
-const models: Partial<Record<CarModelName | "tire", THREE.Group>> = {}
+const modelsLoader = new GLTFLoader()
 
 //Car Models
 const [ giuliaGLTF, f40GLTF, tireGLTF ] = await Promise.all([
-    loader.loadAsync("../assets/models/giulia.glb"),
-    loader.loadAsync("../assets/models/f40.glb"),
-    loader.loadAsync("../assets/models/tire.glb")
+    modelsLoader.loadAsync("../assets/models/giulia.glb"),
+    modelsLoader.loadAsync("../assets/models/f40.glb"),
+    modelsLoader.loadAsync("../assets/models/tire.glb")
 ])
 
-models["giulia"] = giuliaGLTF.scene
-models["f40"] = f40GLTF.scene
-models["tire"] = tireGLTF.scene
+const models: Record<CarModelName | "tire", THREE.Group> = {
+    "giulia": giuliaGLTF.scene,
+    "f40": f40GLTF.scene,
+    "tire": tireGLTF.scene
+}
+
+const soundTouchRegistrations = new WeakMap<AudioContext, Promise<void>>()
+
+export async function initAudio(context: AudioContext): Promise<void> {
+
+    if (!context.audioWorklet) {
+        throw new Error("AudioWorklet is unavailable. Check HTTPS / secure context.")
+    }
+
+    let registration = soundTouchRegistrations.get(context)
+
+    if (!registration) {
+        registration = SoundTouchNode.register(context, processorUrl)
+        soundTouchRegistrations.set(context, registration)
+    }
+
+    await registration
+}
 
 //CLASS - carLobbyVisual
 export class carLobbyVisual {
     id: string
+    model: CarModelName
+
     mesh: THREE.Group
 
-    chassis: THREE.Group
-    wheelMesh: THREE.Group[] = []
+    private chassis: THREE.Group
+    private wheelMesh: THREE.Group[] = []
 
-    headlights: THREE.SpotLight[] = []
-    backlights: THREE.SpotLight[] = []
+    private headlights: THREE.SpotLight[] = []
+    private backlights: THREE.SpotLight[] = []
 
     throttle: number = 0
     steer: number = 0
     lights: boolean = false
-    currentWheelsSpeed: number = 0
+
+    private currentWheelsSpeed: number = 0
+    
+    private engineAudio: EngineAudio | null = null
 
     //fun - constructor()
     constructor(id: string, model: CarModelName) {
         this.id = id
+        this.model = model
 
         const carGroup = new THREE.Group()
 
@@ -180,6 +208,7 @@ export class carLobbyVisual {
     }
 
     updateWheels(dt: number): void {
+
         this.currentWheelsSpeed = THREE.MathUtils.lerp(
             this.currentWheelsSpeed, this.throttle * 0.02 * dt, 1 - Math.exp(-5 * dt / 1000)
         )
@@ -216,5 +245,19 @@ export class carLobbyVisual {
         this.backlights.forEach((light) => {
             light.visible = this.lights
         })
+    }
+
+    initEngineAudio(listener: THREE.AudioListener): void {
+        this.engineAudio = new EngineAudio(listener, this.mesh)
+    }
+    
+    updateEngine(dt: number): void {
+        this.engineAudio?.update(dt, this.throttle, this.model)
+    }
+
+    //fun - dispose()
+    dispose(): void {
+        this.engineAudio?.dispose(this.mesh)
+        this.engineAudio = null
     }
 }

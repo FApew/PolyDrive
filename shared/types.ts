@@ -135,6 +135,8 @@ export type CarModel = {
     default_color: THREE.ColorRepresentation
 
     elevation: number
+
+    sound: SoundConfig
 }
 
 export type ModeNodes = {points: number[], turns: number[], modes: Mode[]}
@@ -199,4 +201,24 @@ export type TopRightInfo = {
 export type LobbyCarList = {
     own: carLobbyVisual | undefined,
     others: carLobbyVisual[]
+}
+
+export type AudioKey = "idle" | "lowOff" | "lowOn" | "medOff" | "medOn" | "highOff" | "highOn" | "maxRPM"
+
+export type SoundConfig = {
+    rumble_freq: Range
+    rumble_volume: number
+
+    midtone_freq: Range
+    midtone_volume: number
+
+    hightone_freq: Range
+    hightone_volume: number
+    hightone_rpms: number
+
+    body_freq: Range
+    body_volume: number
+
+    main_volume: number
+    pitch: Range
 }

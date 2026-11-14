@@ -2,10 +2,10 @@ import * as THREE from "three"
 import Stats from "stats.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModel, CarModelName } from "../../shared/types"
+import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
-import { carLobbyVisual } from "./carLobbyVisuals"
+import { carLobbyVisual, initAudio } from "./carLobbyVisuals"
 import { modelList } from "./assetsLoader"
 import { updateInfos } from "./UI"
 
@@ -14,7 +14,7 @@ let inLobby = false
 
 const cars: LobbyCarList = { own: undefined, others: [] }
 
-const model = modelList[Math.floor(Math.random() * modelList.length)]
+const model = modelList[0/*Math.floor(Math.random() * modelList.length)*/]
 export const currentCarVisuals: CarVisuals = {
     model: model!, 
     color: config.car.models[model!].default_color
@@ -73,6 +73,11 @@ socket.on("Init", async () => {
     }
 })
 
+//note - User Interaction Audio Init
+window.addEventListener("pointerdown", async () => {
+    await audioListener.context.resume()
+}, { once: true })
+
 //NOTE - KeyPress Listener
 const keys: Record<string, boolean> = {}
 
@@ -85,6 +90,7 @@ window.addEventListener("keyup", e => {
 })
 
 const scene = new THREE.Scene()
+const audioListener = new THREE.AudioListener()
 let controls: OrbitControls
 
 //FUNCTION - lobbyInit()
@@ -100,6 +106,10 @@ async function lobbyInit(): Promise<void> {
         10000
     )
     camera.position.set(-1.8, 1.67, 3.39)
+
+    //note - Audio Init
+    camera.add(audioListener)
+    await initAudio(audioListener.context)
 
     //note - Renderer Init
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -172,6 +182,11 @@ async function lobbyInit(): Promise<void> {
         cars.others.forEach((car) => {
             car.updateWheels(dt)
         })
+
+        cars.own!.updateEngine(dt)
+        cars.others.forEach((car) => {
+            car.updateEngine(dt)
+        })
     
         controls.update()
 
@@ -229,9 +244,15 @@ function spawnCars(playerList: LobbyPlayer[]): void {
     scene.clear()
     sceneSetup(false)
 
+    cars.own?.dispose()
+    cars.others.forEach(car => {
+        car.dispose()
+    })
+
     cars.others = []
     playerList.forEach((player: LobbyPlayer, idx: number) => {
         const newCar = new carLobbyVisual(player.id!, player.carVisuals.model)
+        newCar.initEngineAudio(audioListener)
         const x = 3 * idx + (Math.random() - 0.5) * 0.2, z = (Math.random() - 0.5) * 0.2
         newCar.mesh.position.x = x
         newCar.mesh.position.z = z
@@ -279,6 +300,11 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
 
             const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
             cars.others[idx]!.setColor(player.carVisuals.color)
+
+            cars.others[idx]!.throttle = player.throttle
+            cars.others[idx]!.steer = player.steer
+            cars.others[idx]!.lights = player.lights
+            cars.others[idx]!.updateLights()
         })
     } else if (change === "input") {
         playerList.forEach((player: LobbyPlayer) => {
@@ -289,7 +315,6 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
 
             cars.others[idx]!.throttle = player.throttle
             cars.others[idx]!.steer = player.steer
-
             cars.others[idx]!.lights = player.lights
             cars.others[idx]!.updateLights()
         })
