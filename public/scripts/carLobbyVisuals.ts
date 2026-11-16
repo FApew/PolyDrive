@@ -193,7 +193,7 @@ export class carLobbyVisual {
     updateWheels(dt: number): void {
 
         this.currentWheelsSpeed = THREE.MathUtils.lerp(
-            this.currentWheelsSpeed, this.currentRPM > 850 ? dt * this.currentRPM * 2*Math.PI / 60 : 0, 1 - Math.exp(-5 * dt / 1000)
+            this.currentWheelsSpeed, this.currentRPM > config.car.models[this.model].rpm.min * 1.2 ? dt * this.currentRPM * 2*Math.PI / 60 : 0, 1 - Math.exp(-5 * dt / 1000)
         )
 
         const currentSteer = THREE.MathUtils.lerp(
