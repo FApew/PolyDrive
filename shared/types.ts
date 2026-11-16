@@ -97,7 +97,7 @@ export type GameConfig = {
 }
 
 export type Vec3 = {x: number, y: number, z: number}
-export type Range = {min: number, max: number}
+export type Range = {min: number, max: number} // numeric bounds
 
 export type Mode = "casual" | "rally" | "f1" | "touring" | "hillclimb" | "drift" | "karting"
 
@@ -135,6 +135,9 @@ export type CarModel = {
     default_color: THREE.ColorRepresentation
 
     elevation: number
+
+    cylinders: number // firing count
+    rpm: Range // engine speed range
 
     sound: SoundConfig
 }
@@ -183,6 +186,7 @@ export type LobbyPlayer = {
     throttle: number,
     steer: number,
     lights: boolean
+    shift: boolean
 }
 
 export type Lobby = {
@@ -205,20 +209,170 @@ export type LobbyCarList = {
 
 export type AudioKey = "idle" | "lowOff" | "lowOn" | "medOff" | "medOn" | "highOff" | "highOn" | "maxRPM"
 
+export type Harmonic = {
+    order: number //harmonic N
+    master: number //Overall volume
+    gainByRPM: {
+        max: number //Upper RPM bound
+        gain: number //Harmonic volume
+    }[]
+    wave: OscillatorType //Wave Type
+}
+
+export type Resonator = {
+    frequency: number //Resonant frequency
+    q: number //Resonance width
+    gain: number //Resonance volume
+}
+
 export type SoundConfig = {
-    rumble_freq: Range
-    rumble_volume: number
+    samples: {
+        volume: number //Sample volume
+        pitch: Range
+        saturation: {
+            kind: "tube" | "hard" //Saturation style
+            drive: number //Distortion strength
+            mix: number //Parallel blend
+            highpass: number
+        }
+    }
 
-    midtone_freq: Range
-    midtone_volume: number
+    synthesis: {
+        harmonics: Harmonic[] //Engine tone layers
+        sub_bass: {
+            volume: number
+            rumble_frequency: number
+            rumble_volume: number
+        }
+        rasp: {
+            volume: number 
+            highpass: number
+            cutoff: Range //Freq band
+            min_rpm_normalized: number //Sart RPM
+        }
+    }
 
-    hightone_freq: Range
-    hightone_volume: number
-    hightone_rpms: number
+    layers: {
+        rumble: {
+            volume: number
+            cutoff: number //Rumble freqs
+        }
+        intake: {
+            volume: number
+            cutoff: Range //Intake freqs
+        }
+        exhaust: {
+            volume: number
+            cutoff: Range //Exhaust freqs
+            q: number //Exhaust resonance width
+        }
+    }
+    
+    effects: {
+        resonators: Resonator[] //Exhaust resonators
+        comb: {
+            enabled: boolean
+            delay_ms: number
+            tracking_ms: number //RPM delay change
+            mix: number //Comb effect volume
+        }
+        output: {
+            reverb: {
+                mix: number //Reverb volume
+                seconds: number
+            }
+            low_shelf: {
+                frequency: number
+                gain: number //Bass boost volume
+            }
+        }
+    }
 
-    body_freq: Range
-    body_volume: number
+    events: {
+        tip_in: {
+            threshold: number //Throttle change trigger
+            gain: number //Sample gain spike
+            drive: number //Saturation increase
+            decay: number //Fade time
+        }
 
-    main_volume: number
-    pitch: Range
+        overrun: {
+            min_rpm_normalized: number //Crackle start RPM
+            density: number //Crackles per second
+            volume: number //Crackle loudness
+        }
+
+        limiter: {
+            min_rpm_normalized: number //Limiter start RPM
+            rate_hz: number //Cut cycles per second
+            depth: number //Cut volume depth
+            pop_on_cut: boolean //Pop for each cut
+            pop_volume: number
+        }
+
+        shift_bangs: {
+            cut_ms: number //Shift cut duration
+            depth: number //Shift cut depth
+            pops: number //Shift pop count
+            volume: number //Shift pop level
+        }
+
+        pops: {
+            volume: number //Pop loudness
+            frequency: number //Pop filter pitch
+            duration: number
+            min_rpm_normalized: number //Pop start RPM
+            cooldown: number //Pop spacing
+        }
+    }
+}
+
+export type SampleVoice = {
+    source: AudioBufferSourceNode
+    gain: GainNode
+}
+
+export type HarmonicVoice = {
+    node: OscillatorNode
+    gain: GainNode
+}
+
+export type EngineAudioNodes = {
+    mix: {
+        engine: GainNode
+        limiter: GainNode
+        shiftCut: GainNode
+        resonators: BiquadFilterNode[]
+        comb: {delay: DelayNode, dry: GainNode, wet: GainNode}
+        final: GainNode
+    }
+    samples: {
+        voices: Partial<Record<AudioKey, SampleVoice>>
+        mix: GainNode
+        saturation: {filter: BiquadFilterNode, drive: GainNode, shaper: WaveShaperNode, gain: GainNode}
+    }
+    layers: {
+        rumble: {filter: BiquadFilterNode, gain: GainNode}
+        intake: {highpass: BiquadFilterNode, filter: BiquadFilterNode, gain: GainNode}
+        exhaust: {filter: BiquadFilterNode, gain: GainNode}
+        subBass: {oscillator: OscillatorNode, filter: BiquadFilterNode, saturator: WaveShaperNode, gain: GainNode}
+        lowRumble: {oscillator: OscillatorNode, gain: GainNode}
+        rasp: {
+            oscillator: OscillatorNode
+            highpass: BiquadFilterNode
+            gain: GainNode
+            noiseFilter: BiquadFilterNode
+            noiseGain: GainNode
+        }
+    }
+    output: {
+        master: GainNode
+        audioBus: THREE.PositionalAudio
+        mix: GainNode
+        reverb: ConvolverNode
+        reverbGain: GainNode
+        lowShelf: BiquadFilterNode
+        compressor: DynamicsCompressorNode
+        limiter: DynamicsCompressorNode
+    }
 }

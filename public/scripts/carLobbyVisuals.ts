@@ -1,6 +1,4 @@
 import * as THREE from "three"
-import { SoundTouchNode } from "@soundtouchjs/audio-worklet"
-import processorUrl from "@soundtouchjs/audio-worklet/processor?url"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
 import type { Vec3, CarModelName } from "../../shared/types"
@@ -23,24 +21,6 @@ const models: Record<CarModelName | "tire", THREE.Group> = {
     "tire": tireGLTF.scene
 }
 
-const soundTouchRegistrations = new WeakMap<AudioContext, Promise<void>>()
-
-export async function initAudio(context: AudioContext): Promise<void> {
-
-    if (!context.audioWorklet) {
-        throw new Error("AudioWorklet is unavailable. Check HTTPS / secure context.")
-    }
-
-    let registration = soundTouchRegistrations.get(context)
-
-    if (!registration) {
-        registration = SoundTouchNode.register(context, processorUrl)
-        soundTouchRegistrations.set(context, registration)
-    }
-
-    await registration
-}
-
 //CLASS - carLobbyVisual
 export class carLobbyVisual {
     id: string
@@ -59,6 +39,7 @@ export class carLobbyVisual {
     lights: boolean = false
 
     private currentWheelsSpeed: number = 0
+    private currentRPM: number
     
     private engineAudio: EngineAudio | null = null
 
@@ -169,6 +150,8 @@ export class carLobbyVisual {
             if (child instanceof THREE.Mesh) child.castShadow = true
         })
 
+        this.currentRPM = config.car.models[this.model].rpm.min
+
         this.updateLights()
         this.mesh = carGroup
     }
@@ -210,7 +193,7 @@ export class carLobbyVisual {
     updateWheels(dt: number): void {
 
         this.currentWheelsSpeed = THREE.MathUtils.lerp(
-            this.currentWheelsSpeed, this.throttle * 0.02 * dt, 1 - Math.exp(-5 * dt / 1000)
+            this.currentWheelsSpeed, this.currentRPM > 850 ? dt * this.currentRPM * 2*Math.PI / 60 : 0, 1 - Math.exp(-5 * dt / 1000)
         )
 
         const currentSteer = THREE.MathUtils.lerp(
@@ -219,8 +202,8 @@ export class carLobbyVisual {
 
         this.wheelMesh[0]!.rotation.y = currentSteer
         this.wheelMesh[1]!.rotation.y = currentSteer
-        this.wheelMesh[2]!.rotateX(this.currentWheelsSpeed)
-        this.wheelMesh[3]!.rotateX(this.currentWheelsSpeed)
+        this.wheelMesh[2]!.rotateX(this.currentWheelsSpeed / 8000)
+        this.wheelMesh[3]!.rotateX(this.currentWheelsSpeed / 8000)
     }
 
     updateLights(): void {
@@ -248,11 +231,24 @@ export class carLobbyVisual {
     }
 
     initEngineAudio(listener: THREE.AudioListener): void {
-        this.engineAudio = new EngineAudio(listener, this.mesh)
+        this.engineAudio = new EngineAudio(listener, this.mesh, this.model)
     }
-    
-    updateEngine(dt: number): void {
-        this.engineAudio?.update(dt, this.throttle, this.model)
+
+    updateEngine(dt: number, master: number): void {
+        if (!this.engineAudio) return
+
+        const { min: idleRPM, max: redlineRPM } = config.car.models[this.model].rpm
+
+        const target = idleRPM + this.throttle * (redlineRPM * 1.02 - idleRPM)
+
+        const rate = target > this.currentRPM ? 0.5 : 7               // revs up faster than it falls
+        this.currentRPM = THREE.MathUtils.lerp(this.currentRPM, target, 1 - Math.exp(-rate * dt / 1000))
+        this.engineAudio?.update(this.throttle, this.currentRPM, master, dt)
+    }
+
+    //fun - triggerEngineShift()
+    triggerEngineShift(): void {
+        this.engineAudio?.triggerShift()
     }
 
     //fun - dispose()

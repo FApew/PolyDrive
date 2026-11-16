@@ -35,61 +35,170 @@ car:
   camera_follow_smoothness: 15
 
   models:
-    giulia:
+    giulia:   # Quadrifoglio: 2.9 V6 biturbo, 90°, ~7000 limiter
       wheel_size: 1
       wheel_pos: {x: -0.762, y: 0, z: 1.4}
 
       headlights_pos: {x: 0.639, y: 0.35, z: 2.1}
       backlights_pos: {x: 0.591, y: 0.44, z: -2.06}
-      
-      default_color: 0x218560
 
+      default_color: 0x218560
       elevation: 0
 
+      cylinders: 6
+      rpm: {min: 850, max: 7000}
+
       sound:
-        rumble_freq: {min: 60, max: 155}
-        rumble_volume: 0.35
+        samples:
+          volume: 0.25
+          pitch: {min: 0.72, max: 1.12}
+          saturation: {kind: "tube", drive: 2.0, mix: 0.08, highpass: 220}
 
-        midtone_freq: {min: 60, max: 220}
-        midtone_volume: 0.035
+        synthesis:
+          harmonics: [{
+              order: 0.5,
+              master: 0.3,
+              wave: "triangle",
+              gainByRPM: [{max: 850, gain: 0.10}, {max: 1800, gain: 0.08}, {max: 3500, gain: 0.04}, {max: 5200, gain: 0.02}, {max: 7000, gain: 0.01}]
+            }, {
+              order: 1,
+              master: 0.9,
+              wave: "triangle",
+              gainByRPM: [{max: 850, gain: 0.38}, {max: 1800, gain: 0.34}, {max: 3500, gain: 0.28}, {max: 5200, gain: 0.22}, {max: 7000, gain: 0.17}]
+            }, {
+              order: 2,
+              master: 0.45,
+              wave: "sine",
+              gainByRPM: [{max: 850, gain: 0.07}, {max: 1800, gain: 0.11}, {max: 3500, gain: 0.13}, {max: 5200, gain: 0.12}, {max: 7000, gain: 0.09}]
+            }, {
+              order: 3,
+              master: 0.4,
+              wave: "triangle",
+              gainByRPM: [{max: 850, gain: 0.02}, {max: 1800, gain: 0.06}, {max: 3500, gain: 0.11}, {max: 5200, gain: 0.13}, {max: 7000, gain: 0.11}]
+            }, {
+              order: 4,
+              master: 0.25,
+              wave: "sawtooth",
+              gainByRPM: [{max: 850, gain: 0}, {max: 1800, gain: 0.008}, {max: 3500, gain: 0.03}, {max: 5200, gain: 0.05}, {max: 7000, gain: 0.05}]
+            }, {
+              order: 5,
+              master: 0.18,
+              wave: "triangle",
+              gainByRPM: [{max: 850, gain: 0}, {max: 1800, gain: 0.005}, {max: 3500, gain: 0.02}, {max: 5200, gain: 0.035}, {max: 7000, gain: 0.035}]
+            }, {
+              order: 6,
+              master: 0.1,
+              wave: "sawtooth",
+              gainByRPM: [{max: 850, gain: 0}, {max: 1800, gain: 0}, {max: 3500, gain: 0.006}, {max: 5200, gain: 0.014}, {max: 7000, gain: 0.02}]
+            }
+          ]
 
-        hightone_freq: {min: 260, max: 1150}
-        hightone_volume: 0
-        hightone_rpms: 1
+          sub_bass: {volume: 0.018, rumble_frequency: 38, rumble_volume: 0.008}
+          rasp: {volume: 0.02, highpass: 1300, cutoff: {min: 1800, max: 4600}, min_rpm_normalized: 0.8}
 
-        body_freq: {min: 55, max: 80}
-        body_volume: 0.05
+        layers:
+          rumble: {volume: 0.045, cutoff: 120}
+          intake: {volume: 0.05, cutoff: {min: 500, max: 3200}}
+          exhaust: {volume: 0.12, cutoff: {min: 500, max: 3200}, q: 1.5}
 
-        main_volume: 0.042
-        pitch: {min: 0.65, max: 0.7}
+        effects:
+          resonators: [{frequency: 120, q: 1.2, gain: 0.3}, {frequency: 290, q: 1.5, gain: 0.6}, {frequency: 720, q: 1.8, gain: 1.5}, {frequency: 1500, q: 2.0, gain: 1.8}]
+          comb: {enabled: true, delay_ms: 1.4, tracking_ms: 0.35, mix: 0.03}
+          output:
+            reverb: {mix: 0.015, seconds: 0.25}
+            low_shelf: {frequency: 105, gain: -1.5}
 
-    f40:
+        events:
+          tip_in: {threshold: 0.35, gain: 0.16, drive: 0.8, decay: 0.12}
+          overrun: {min_rpm_normalized: 0.42, density: 7, volume: 0.85}
+          limiter: {min_rpm_normalized: 0.99, rate_hz: 11, depth: 0.8, pop_on_cut: true, pop_volume: 0.3}
+          shift_bangs: {cut_ms: 85, depth: 0.78, pops: 2, volume: 0.6}
+          pops: {volume: 0.9, frequency: 1600, duration: 0.055, min_rpm_normalized: 0.38, cooldown: 0.12}
+
+    f40:   # 2.9 V8 twin-turbo, cross-plane, ~7750 limiter
       wheel_size: 1.05
       wheel_pos: {x: -0.81, y: 0, z: 1.225}
 
       headlights_pos: {x: 0.805, y: 0.212, z: 2.14}
       backlights_pos: {x: 0.613, y: 0.341, z: -2.085}
-      
-      default_color: 0xff2800
 
+      default_color: 0xff2800
       elevation: 0
 
+      cylinders: 8
+      rpm: {min: 1000, max: 7500}
+
       sound:
-        rumble_freq: {min: 40, max: 100}
-        rumble_volume: 0.48
+        samples:
+          volume: 0.25
+          pitch: {min: 0.9, max: 1.5}
+          saturation: {kind: "tube", drive: 2.1, mix: 0.08, highpass: 280}
 
-        midtone_freq: {min: 80, max: 402}
-        midtone_volume: 0.2
+        synthesis:
+          harmonics: [{
+              order: 0.5,
+              master: 0.45,
+              wave: "triangle",
+              gainByRPM: [{max: 1000, gain: 0.12}, {max: 2000, gain: 0.10}, {max: 3500, gain: 0.06}, {max: 5200, gain: 0.03}, {max: 7500, gain: 0.015}]
+            }, {
+              order: 1,
+              master: 0.8,
+              wave: "triangle",
+              gainByRPM: [{max: 1000, gain: 0.30}, {max: 2000, gain: 0.28}, {max: 3500, gain: 0.22}, {max: 5200, gain: 0.17}, {max: 7500, gain: 0.12}]
+            }, {
+              order: 2,
+              master: 0.7,
+              wave: "triangle",
+              gainByRPM: [{max: 1000, gain: 0.09}, {max: 2000, gain: 0.18}, {max: 3500, gain: 0.24}, {max: 5200, gain: 0.24}, {max: 7500, gain: 0.19}]
+            }, {
+              order: 3,
+              master: 0.55,
+              wave: "triangle",
+              gainByRPM: [{max: 1000, gain: 0.02}, {max: 2000, gain: 0.08}, {max: 3500, gain: 0.16}, {max: 5200, gain: 0.20}, {max: 7500, gain: 0.18}]
+            }, {
+              order: 4,
+              master: 0.5,
+              wave: "sawtooth",
+              gainByRPM: [{max: 1000, gain: 0.005}, {max: 2000, gain: 0.025}, {max: 3500, gain: 0.07}, {max: 5200, gain: 0.10}, {max: 7500, gain: 0.10}]
+            }, {
+              order: 5,
+              master: 0.3,
+              wave: "triangle",
+              gainByRPM: [{max: 1000, gain: 0}, {max: 2000, gain: 0.015}, {max: 3500, gain: 0.055}, {max: 5200, gain: 0.10}, {max: 7500, gain: 0.10}]
+            }, {
+              order: 6,
+              master: 0.2,
+              wave: "triangle",
+              gainByRPM: [{max: 1000, gain: 0}, {max: 2000, gain: 0.01}, {max: 3500, gain: 0.04}, {max: 5200, gain: 0.08}, {max: 7500, gain: 0.09}]
+            }, {
+              order: 8,
+              master: 0.18,
+              wave: "sawtooth",
+              gainByRPM: [{max: 1000, gain: 0}, {max: 2000, gain: 0}, {max: 3500, gain: 0.02}, {max: 5200, gain: 0.05}, {max: 7500, gain: 0.07}]
+            }
+          ]
 
-        hightone_freq: {min: 300, max: 650}
-        hightone_volume: 0.4
-        hightone_rpms: 0.3
+          sub_bass: {volume: 0.028, rumble_frequency: 34, rumble_volume: 0.016}
+          rasp: {volume: 0.022, highpass: 1250, cutoff: {min: 2000, max: 4800}, min_rpm_normalized: 0.75}
 
-        body_freq: {min: 85, max: 300}
-        body_volume: 0.2
+        layers:
+          rumble: {volume: 0.055, cutoff: 155}
+          intake: {volume: 0.075, cutoff: {min: 700, max: 4800}}     # turbo whoosh
+          exhaust: {volume: 0.12, cutoff: {min: 350, max: 2600}, q: 1}
 
-        main_volume: 0.04
-        pitch: {min: 0.88, max: 1.25}
+        effects:
+          resonators: [{frequency: 130, q: 1.2, gain: 0.4}, {frequency: 260, q: 1.5, gain: 0.8}, {frequency: 520, q: 1.7, gain: 1.5}, {frequency: 1100, q: 1.8, gain: 1.8}]
+          comb: {enabled: true, delay_ms: 1.7, tracking_ms: 0.4, mix: 0.025}
+          output:
+            reverb: {mix: 0.01, seconds: 0.22}   # drier, rawer
+            low_shelf: {frequency: 95, gain: -0.5}
+
+        events:
+          tip_in: {threshold: 0.3, gain: 0.18, drive: 0.8, decay: 0.1}
+          overrun: {min_rpm_normalized: 0.45, density: 7, volume: 0.9}
+          limiter: {min_rpm_normalized: 0.99, rate_hz: 14, depth: 0.92, pop_on_cut: true, pop_volume: 0.5}
+          shift_bangs: {cut_ms: 80, depth: 0.88, pops: 3, volume: 0.7}
+          pops: {volume: 0.9, frequency: 1800, duration: 0.055, min_rpm_normalized: 0.42, cooldown: 0.1}
 
   tuning:
     f1:
@@ -100,7 +209,7 @@ car:
       suspensionRelaxation: 7
       maxSuspensionTravel: 0.2
       engineForce: 6000
-    
+
 
 track:
   centerline_samples: 1000

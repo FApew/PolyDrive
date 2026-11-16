@@ -5,7 +5,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
-import { carLobbyVisual, initAudio } from "./carLobbyVisuals"
+import { carLobbyVisual } from "./carLobbyVisuals"
 import { modelList } from "./assetsLoader"
 import { updateInfos } from "./UI"
 
@@ -25,7 +25,8 @@ const currentPlayer: LobbyPlayer = {
     carVisuals: currentCarVisuals,
     throttle: 0,
     steer: 0,
-    lights: false
+    lights: false,
+    shift: false
 }
 
 export const topRightInfo: TopRightInfo = {
@@ -73,11 +74,6 @@ socket.on("Init", async () => {
     }
 })
 
-//note - User Interaction Audio Init
-window.addEventListener("pointerdown", async () => {
-    await audioListener.context.resume()
-}, { once: true })
-
 //NOTE - KeyPress Listener
 const keys: Record<string, boolean> = {}
 
@@ -90,8 +86,64 @@ window.addEventListener("keyup", e => {
 })
 
 const scene = new THREE.Scene()
-const audioListener = new THREE.AudioListener()
+let audioListener: THREE.AudioListener | undefined
+let activeCamera: THREE.PerspectiveCamera | undefined
+let audioReady = false
+let audioInitPromise: Promise<void> | undefined
+let audioVisibilityChange = Promise.resolve()
 let controls: OrbitControls
+
+function syncAudioVisibility(): void {
+    const context = audioListener?.context
+    if (!context) return
+
+    audioVisibilityChange = audioVisibilityChange.then(async () => {
+        if (context.state === "closed") return
+
+        if (document.hidden && context.state === "running") {
+            await context.suspend()
+        } else if (!document.hidden && context.state !== "running") {
+            await context.resume()
+        }
+    }).catch((error: unknown) => {
+        console.error("Could not update audio for tab visibility:", error)
+    })
+}
+
+function activateAudio(): void {
+    audioListener ??= new THREE.AudioListener()
+
+    const listener = audioListener
+    const context = listener.context
+    const resume = context.state === "running" ? Promise.resolve() : context.resume()
+
+    if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
+
+    if (audioReady || audioInitPromise) {
+        void resume.catch(error => console.error("Could not resume audio:", error))
+        return
+    }
+
+    audioInitPromise = resume
+        .then(() => {
+            audioReady = true
+            if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
+
+            const carsToInitialize = [cars.own, ...cars.others]
+            carsToInitialize.forEach(car => car?.initEngineAudio(listener))
+        })
+        .catch((error: unknown) => {
+            audioInitPromise = undefined
+            console.error("Could not initialize audio:", error)
+        })
+}
+
+document.addEventListener("visibilitychange", syncAudioVisibility)
+window.addEventListener("focus", syncAudioVisibility)
+window.addEventListener("pageshow", syncAudioVisibility)
+
+window.addEventListener("pointerdown", activateAudio)
+window.addEventListener("keydown", activateAudio)
 
 //FUNCTION - lobbyInit()
 async function lobbyInit(): Promise<void> {
@@ -105,11 +157,10 @@ async function lobbyInit(): Promise<void> {
         0.1,
         10000
     )
+    activeCamera = camera
     camera.position.set(-1.8, 1.67, 3.39)
 
-    //note - Audio Init
-    camera.add(audioListener)
-    await initAudio(audioListener.context)
+    if (audioListener) camera.add(audioListener)
 
     //note - Renderer Init
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -151,7 +202,8 @@ async function lobbyInit(): Promise<void> {
     //note - Car Init
     spawnCars([currentPlayer])
 
-    let lastThrottle = 0, lastSteer = 0, lastLights = false
+    let lastThrottle = 0, lastSteer = 0, lastLights = false, lastShift = false
+    let pressed: Partial<Record<string, boolean>> = {}
     let pt = -1
 
     //fun - renderLoop()
@@ -160,22 +212,29 @@ async function lobbyInit(): Promise<void> {
         stats.begin()
 
         const ct = performance.now()
-        let dt = pt ? ct - pt : 1
+        let dt = pt < 0 ? 1 : Math.min(ct - pt, 100)
 
-        const throttle = keys["w"] ? 1 : 0
+        let throttle = keys["w"] ? 1 : 0
+        if (keys["e"]) throttle = 0
         cars.own!.throttle = throttle
 
         const steer = (keys["a"] ? 1 : 0) - (keys["d"] ? 1 : 0)
         cars.own!.steer = steer
 
-        const lights = keys["l"] ? true : false
+        let lights = lastLights
+        if (keys["l"] != pressed["l"] && keys["l"]) lights = !lastLights
+
+        let shift = false
+        if ((keys["e"] != pressed["e"] && !lastShift) && !keys["e"]) shift = true
+
         cars.own!.lights = lights
         cars.own!.updateLights()
         
-        if ((lastThrottle != throttle || lastSteer != steer || lastLights != lights) && inLobby) {
+        if ((lastThrottle != throttle || lastSteer != steer || lastLights != lights || lastShift != shift) && inLobby) {
 
             //socket_Out - REQcarUpdate
-            socket.emit("REQcarUpdate", {throttle: throttle, steer: steer, lights: lights})
+            socket.emit("REQcarUpdate", {throttle, steer, lights, shift})
+            if (shift) cars.own!.triggerEngineShift()
         }
 
         cars.own!.updateWheels(dt)
@@ -183,9 +242,9 @@ async function lobbyInit(): Promise<void> {
             car.updateWheels(dt)
         })
 
-        cars.own!.updateEngine(dt)
+        cars.own!.updateEngine(dt, 1)
         cars.others.forEach((car) => {
-            car.updateEngine(dt)
+            car.updateEngine(dt, 0.5)
         })
     
         controls.update()
@@ -195,6 +254,10 @@ async function lobbyInit(): Promise<void> {
         lastThrottle = throttle
         lastSteer = steer
         lastLights = lights
+        lastShift = shift
+
+        pressed["l"] = keys["l"]
+        pressed["e"] = keys["e"]
         stats.end()
     }
     requestAnimationFrame(renderLoop)
@@ -252,7 +315,7 @@ function spawnCars(playerList: LobbyPlayer[]): void {
     cars.others = []
     playerList.forEach((player: LobbyPlayer, idx: number) => {
         const newCar = new carLobbyVisual(player.id!, player.carVisuals.model)
-        newCar.initEngineAudio(audioListener)
+        if (audioReady && audioListener) newCar.initEngineAudio(audioListener)
         const x = 3 * idx + (Math.random() - 0.5) * 0.2, z = (Math.random() - 0.5) * 0.2
         newCar.mesh.position.x = x
         newCar.mesh.position.z = z
@@ -317,6 +380,7 @@ socket.on("RESvisibleChange", ({playerList, change}) => {
             cars.others[idx]!.steer = player.steer
             cars.others[idx]!.lights = player.lights
             cars.others[idx]!.updateLights()
+            if (player.shift) cars.others[idx]!.triggerEngineShift()
         })
     } else if (change === "model") {
         spawnCars(playerList)

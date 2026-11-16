@@ -52,7 +52,8 @@ function joinLobby(id: string, carVisuals: CarVisuals, code: string): void {
         carVisuals: carVisuals,
         throttle: 0,
         steer: 0,
-        lights: false
+        lights: false,
+        shift: false
     }
 
     lobbyRecord[code]!.playerList.push(newPlayer)
@@ -155,7 +156,7 @@ io.on("connection", (socket) => {
     })
 
     //socket_In - REQwheelsUpdate
-    socket.on("REQcarUpdate", ({throttle, steer, lights}) => {
+    socket.on("REQcarUpdate", ({throttle, steer, lights, shift}) => {
         const code = playerRecord[socket.id]
         if (code && lobbyRecord[code]) {
 
@@ -165,6 +166,7 @@ io.on("connection", (socket) => {
             playerList[idx]!.throttle = throttle
             playerList[idx]!.steer = steer
             playerList[idx]!.lights = lights
+            playerList[idx]!.shift = shift
 
             const playerIDsList = playerList.map((obj) => {return obj.id!})
             io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "input"}))
