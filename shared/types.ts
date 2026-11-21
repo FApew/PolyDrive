@@ -94,6 +94,8 @@ export type GameConfig = {
         drift: TrackTune
         karting: TrackTune
     }
+
+    settings: Settings
 }
 
 export type Vec3 = {x: number, y: number, z: number}
@@ -182,6 +184,7 @@ export type CarTune = {
 
 export type LobbyPlayer = {
     id: string | undefined,
+    user: string
     carVisuals: CarVisuals
     throttle: number,
     steer: number,
@@ -285,6 +288,15 @@ export type SoundConfig = {
                 frequency: number
                 gain: number //Bass boost volume
             }
+            presence: {
+                frequency: number
+                q: number
+                gain: number
+            }
+            high_shelf: {
+                frequency: number
+                gain: number
+            }
         }
     }
 
@@ -372,7 +384,28 @@ export type EngineAudioNodes = {
         reverb: ConvolverNode
         reverbGain: GainNode
         lowShelf: BiquadFilterNode
+        presence: BiquadFilterNode
+        highShelf: BiquadFilterNode
         compressor: DynamicsCompressorNode
         limiter: DynamicsCompressorNode
     }
+}
+
+export type SettingSlider = {
+    type: "slider"
+    label: string
+    range: Range
+    step: number
+    default: number
+}
+
+export type SettingsIDs = "main_volume"
+
+export type Settings = {
+    main_volume: SettingSlider
+}
+
+export type Volumes = {
+    main: number,
+    engine: number
 }

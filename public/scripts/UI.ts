@@ -1,12 +1,11 @@
 import * as THREE from "three"
 import iro from "@jaames/iro"
 
-import { currentCarVisuals, setCarColor, createLobby, leaveLobby, joinLobby, topRightInfo, changeModel } from "./main"
+import { currentCarVisuals, setCarColor, createLobby, leaveLobby, joinLobby, topRightInfo, changeModel, changeVolume, changeUser } from "./main"
 
 import { config } from "../../shared/YAMLConfigs"
 import { imgs, modelList } from "./assetsLoader"
-import type { CarModelName } from "../../shared/types"
-import type { IroColorPicker } from "@jaames/iro/dist/ColorPicker"
+import type { CarModelName, Settings, SettingsIDs } from "../../shared/types"
 
 //note - HTML Elements
 const join_ready = document.getElementById("join") as HTMLDivElement
@@ -59,6 +58,9 @@ settings.addEventListener("click", () => {
     sideBarVal = sideBarVal == 2 ? 0 : 2
     updateSideBar()
 })
+
+sideBarVal = 2
+updateSideBar()
 
 //FUNCTION - async updateSideBar()
 async function updateSideBar(): Promise<void> {
@@ -202,16 +204,67 @@ async function updateSideBar(): Promise<void> {
     //fun - settingsUI()
     function settingsUI(): void {
         //note - sideBar Grid Layout
-        sideBar.style.display = "flex"
-        sideBar.style.flexDirection = "column"
+        sideBar.style.display = "grid"
+        sideBar.style.gridTemplateColumns = "1fr"
+        sideBar.style.gridTemplateRows = "5vh 1fr"
 
         //note - settingLabel Creation
-        const settingLabel = document.createElement("div")
-        settingLabel.id = "modelSliderLabel"
-        settingLabel.classList.add("sideBarLabel")
-        settingLabel.innerHTML = "Settings: "
+        const settingsLabel = document.createElement("div")
+        settingsLabel.id = "settingsLabel"
+        settingsLabel.classList.add("sideBarLabel")
+        
+        settingsLabel.innerHTML = "Settings: " 
 
-        sideBar.appendChild(settingLabel)
+        sideBar.appendChild(settingsLabel)
+
+        const settingsBody = document.createElement("div")
+        settingsBody.id = "settingsBody"
+
+        for (const key of Object.keys(config.settings) as SettingsIDs[]) {
+            const cfg = config.settings[key]
+
+            switch (cfg.type) {
+                case "slider": {
+                    const label = document.createElement("div")
+                    label.classList.add("settingsLabel")
+                    label.innerHTML = cfg.label
+                    settingsBody.appendChild(label)
+
+                    const sliderBox = document.createElement("div")
+                    sliderBox.classList.add("sliderBox")
+                    
+                    const slider = document.createElement("input")
+                    slider.id = key
+                    slider.type = "range"
+                    slider.min = cfg.range.min.toString()
+                    slider.max = cfg.range.max.toString()
+                    slider.step = cfg.step.toString()
+                    slider.value = cfg.default.toString()
+
+                    slider.addEventListener("input", () => {
+                        const val = parseFloat(slider.value)
+                        if (key == "main_volume") {
+                            changeVolume("main", val / 75)
+                            sliderLabel.innerHTML = val.toString()
+                        }
+                    })
+                    sliderBox.appendChild(slider)
+
+                    const sliderLabel = document.createElement("div")
+                    sliderLabel.classList.add("sliderLabel")
+                    sliderLabel.innerHTML = cfg.default.toString()
+
+                    sliderBox.appendChild(sliderLabel)
+
+                    settingsBody.appendChild(sliderBox)
+                    break
+                }
+            }
+
+            
+        }
+
+        sideBar.appendChild(settingsBody)
     }
 }
 //!FUNCTION
@@ -231,7 +284,11 @@ export function updateInfos(): void {
 
     topRightInfoElement.appendChild(usernameInput)
 
-    usernameInput.addEventListener("input", resizeInput)
+    usernameInput.addEventListener("input", () => {
+        resizeInput()
+
+        changeUser(usernameInput.value)
+    })
 
     if (topRightInfo.code) {
         const codeElm = document.createElement("div")

@@ -46,13 +46,14 @@ function createLobby(id: string, code: string): void {
 }
 
 //fun - joinLobby()
-function joinLobby(id: string, carVisuals: CarVisuals, code: string): void {
+function joinLobby(id: string, user: string, carVisuals: CarVisuals, lights: boolean, code: string): void {
     const newPlayer: LobbyPlayer = {
         id: id,
+        user: user,
         carVisuals: carVisuals,
         throttle: 0,
         steer: 0,
-        lights: false,
+        lights: lights,
         shift: false
     }
 
@@ -119,9 +120,9 @@ io.on("connection", (socket) => {
     })
 
     //socket_IO - joinLobby
-    socket.on("joinLobby", ({code, carVisuals}: {code: string, carVisuals: CarVisuals}, ack) => {
+    socket.on("joinLobby", ({code, user, carVisuals, lights}: {code: string, user: string, carVisuals: CarVisuals, lights: boolean}, ack) => {
         if (lobbyRecord[code] == undefined) createLobby(socket.id, code)
-        joinLobby(socket.id, carVisuals, code)
+        joinLobby(socket.id, user, carVisuals, lights, code)
         
         console.log("User", socket.id, "joined", code)
 

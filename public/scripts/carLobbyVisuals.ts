@@ -241,7 +241,7 @@ export class carLobbyVisual {
 
         const target = idleRPM + this.throttle * (redlineRPM * 1.02 - idleRPM)
 
-        const rate = target > this.currentRPM ? 0.5 : 7               // revs up faster than it falls
+        const rate = target > this.currentRPM ? 3 : 4              // revs up faster than it falls
         this.currentRPM = THREE.MathUtils.lerp(this.currentRPM, target, 1 - Math.exp(-rate * dt / 1000))
         this.engineAudio?.update(this.throttle, this.currentRPM, master, dt)
     }

@@ -2,13 +2,14 @@ import * as THREE from "three"
 import Stats from "stats.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName } from "../../shared/types"
+import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName, Volumes } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
 import { carLobbyVisual } from "./carLobbyVisuals"
 import { modelList } from "./assetsLoader"
 import { updateInfos } from "./UI"
 
+//NOTE - Global Vars
 let lobbyInitCheck: boolean = false
 let inLobby = false
 
@@ -22,11 +23,17 @@ export const currentCarVisuals: CarVisuals = {
 
 const currentPlayer: LobbyPlayer = {
     id: undefined,
+    user: "",
     carVisuals: currentCarVisuals,
     throttle: 0,
     steer: 0,
     lights: false,
     shift: false
+}
+
+const volumes: Volumes = {
+    main: config.settings.main_volume.default / 75,
+    engine: 0
 }
 
 export const topRightInfo: TopRightInfo = {
@@ -36,6 +43,14 @@ export const topRightInfo: TopRightInfo = {
 }
 
 const params = new URLSearchParams(window.location.search)
+
+const scene = new THREE.Scene()
+let audioListener: THREE.AudioListener | undefined
+let activeCamera: THREE.PerspectiveCamera | undefined
+let audioReady = false
+let audioInitPromise: Promise<void> | undefined
+let audioVisibilityChange = Promise.resolve()
+let controls: OrbitControls
 
 //NOTE - Socket Init
 import { io } from "socket.io-client"
@@ -85,14 +100,7 @@ window.addEventListener("keyup", e => {
     keys[e.key.toLowerCase()] = false
 })
 
-const scene = new THREE.Scene()
-let audioListener: THREE.AudioListener | undefined
-let activeCamera: THREE.PerspectiveCamera | undefined
-let audioReady = false
-let audioInitPromise: Promise<void> | undefined
-let audioVisibilityChange = Promise.resolve()
-let controls: OrbitControls
-
+//fun - syncAudioVisibility()
 function syncAudioVisibility(): void {
     const context = audioListener?.context
     if (!context) return
@@ -110,6 +118,7 @@ function syncAudioVisibility(): void {
     })
 }
 
+//fun - activateAudio()
 function activateAudio(): void {
     audioListener ??= new THREE.AudioListener()
 
@@ -124,18 +133,16 @@ function activateAudio(): void {
         return
     }
 
-    audioInitPromise = resume
-        .then(() => {
-            audioReady = true
-            if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
+    audioInitPromise = resume.then(() => {
+        audioReady = true
+        if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
 
-            const carsToInitialize = [cars.own, ...cars.others]
-            carsToInitialize.forEach(car => car?.initEngineAudio(listener))
-        })
-        .catch((error: unknown) => {
-            audioInitPromise = undefined
-            console.error("Could not initialize audio:", error)
-        })
+        const carsToInitialize = [cars.own, ...cars.others]
+        carsToInitialize.forEach(car => car?.initEngineAudio(listener))
+    }).catch((error: unknown) => {
+        audioInitPromise = undefined
+        console.error("Could not initialize audio:", error)
+    })
 }
 
 document.addEventListener("visibilitychange", syncAudioVisibility)
@@ -231,7 +238,6 @@ async function lobbyInit(): Promise<void> {
         cars.own!.updateLights()
         
         if ((lastThrottle != throttle || lastSteer != steer || lastLights != lights || lastShift != shift) && inLobby) {
-
             //socket_Out - REQcarUpdate
             socket.emit("REQcarUpdate", {throttle, steer, lights, shift})
             if (shift) cars.own!.triggerEngineShift()
@@ -242,9 +248,9 @@ async function lobbyInit(): Promise<void> {
             car.updateWheels(dt)
         })
 
-        cars.own!.updateEngine(dt, 1)
+        cars.own!.updateEngine(dt, volumes.main)
         cars.others.forEach((car) => {
-            car.updateEngine(dt, 0.5)
+            car.updateEngine(dt, volumes.main)
         })
     
         controls.update()
@@ -265,7 +271,7 @@ async function lobbyInit(): Promise<void> {
 //!FUNCTION
 
 //fun - joinedLobby()
-async function joinedLobby(playerList: LobbyPlayer[]): Promise<void> {
+async function joinedLobby(): Promise<void> {
     inLobby = true
 
     const joinButton = document.getElementById("join") as HTMLDivElement
@@ -421,6 +427,27 @@ export function setCarColor(color: THREE.ColorRepresentation, target: carLobbyVi
     }
 }
 
+//fun - changeUser()
+export function changeUser(user: string): void {
+    currentPlayer.user = user
+
+    if (inLobby) {
+
+        //socket_Out - REQvisibleChange
+        socket.emit("REQvisibleChange", {
+            carVisuals: currentCarVisuals,
+            change: "user"
+        })
+    }
+}
+
+//fun - changeVolume()
+export function changeVolume(key: keyof Volumes, volume: number): void {
+    volumes[key] = volume
+}
+
+
+
 //fun - createLobby()
 export async function createLobby(): Promise<void> {
     //socket_IO - createLobby
@@ -443,7 +470,7 @@ export async function joinLobby(code: string, codeCheck: boolean = true): Promis
     if (!await socket.emitWithAck("checkCode", code) && codeCheck) { return false }
 
     //socket_IO - joinLobby
-    const res = await socket.emitWithAck("joinLobby", {code: code, carVisuals: currentCarVisuals})
+    const res = await socket.emitWithAck("joinLobby", {code: code, user: currentPlayer.user, carVisuals: currentCarVisuals, lights: cars.own!.lights})
 
     topRightInfo.code = code
     inLobby = true
@@ -452,7 +479,7 @@ export async function joinLobby(code: string, codeCheck: boolean = true): Promis
     params.set("code", code)
     updateUrl()
 
-    joinedLobby(res.playerList)
+    joinedLobby()
 
     return true
 }

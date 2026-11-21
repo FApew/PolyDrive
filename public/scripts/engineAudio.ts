@@ -67,21 +67,31 @@ export class EngineAudio {
     update(rawThrottle: number, rpm: number, master: number, dt: number): void {
         const now = this.ctx.currentTime
         const {min: idleRPM, max: redlineRPM} = this.carConfig.rpm
+
         const normalizedRPM = THREE.MathUtils.clamp((rpm - idleRPM) / (redlineRPM - idleRPM), 0, 1)
         const firingFrequency = rpm / 60 * this.carConfig.cylinders / 2
-        const throttle = THREE.MathUtils.clamp(rawThrottle, 0, 1)
-        const load = (0.3 + 0.7 * throttle) * master
-        const sound = this.carConfig.sound
+
+        const load = (0.3 + 0.7 * rawThrottle) * master
+
+        //note - Master Volume
+        this.nodes.output.master.gain.setTargetAtTime(
+            this.carConfig.sound.samples.volume * master,
+            now,
+            0.025
+        )
 
         this.state.currentNormalizedRPM = normalizedRPM
-        this.updateLimiter(now, normalizedRPM, sound.events.limiter)
-        this.updateComb(now, normalizedRPM, sound.effects.comb)
-        this.updateHarmonics(now, rpm, firingFrequency, load, sound.synthesis.harmonics)
-        const lowRumbleLevel = this.updateLayers(now, normalizedRPM, throttle, load, firingFrequency, sound)
-        this.updateSamples(now, normalizedRPM, throttle, sound.samples)
-        this.updateTipIn(now, throttle, lowRumbleLevel, sound)
-        this.updateOverrun(now, throttle, normalizedRPM, sound, dt)
-        this.state.previousThrottle = throttle
+        this.updateLimiter(now, normalizedRPM, this.carConfig.sound.events.limiter)
+        this.updateComb(now, normalizedRPM, this.carConfig.sound.effects.comb)
+        this.updateHarmonics(now, rpm, firingFrequency, load, this.carConfig.sound.synthesis.harmonics)
+
+        const lowRumbleLevel = this.updateLayers(now, normalizedRPM, rawThrottle, load, firingFrequency, this.carConfig.sound)
+
+        this.updateSamples(now, normalizedRPM, rawThrottle, this.carConfig.sound.samples)
+        this.updateTipIn(now, rawThrottle, lowRumbleLevel, this.carConfig.sound)
+        this.updateOverrun(now, rawThrottle, normalizedRPM, this.carConfig.sound, dt)
+        
+        this.state.previousThrottle = rawThrottle
     }
     //!FUNCTION
 
@@ -141,6 +151,8 @@ export class EngineAudio {
         this.nodes.output.reverb.disconnect()
         this.nodes.output.reverbGain.disconnect()
         this.nodes.output.lowShelf.disconnect()
+        this.nodes.output.presence.disconnect()
+        this.nodes.output.highShelf.disconnect()
         this.nodes.output.compressor.disconnect()
 
         //note - Synth Layers
@@ -228,24 +240,35 @@ export class EngineAudio {
         this.nodes.output.lowShelf.frequency.value = output.low_shelf.frequency
         this.nodes.output.lowShelf.gain.value = output.low_shelf.gain
 
-        this.nodes.output.compressor.threshold.value = -18
-        this.nodes.output.compressor.knee.value = 12
-        this.nodes.output.compressor.ratio.value = 3
-        this.nodes.output.compressor.attack.value = 0.01
-        this.nodes.output.compressor.release.value = 0.2
+        this.nodes.output.presence.type = "peaking"
+        this.nodes.output.presence.frequency.value = output.presence.frequency
+        this.nodes.output.presence.Q.value = output.presence.q
+        this.nodes.output.presence.gain.value = output.presence.gain
 
-        this.nodes.output.limiter.threshold.value = -1.5
+        this.nodes.output.highShelf.type = "highshelf"
+        this.nodes.output.highShelf.frequency.value = output.high_shelf.frequency
+        this.nodes.output.highShelf.gain.value = output.high_shelf.gain
+
+        this.nodes.output.compressor.threshold.value = -24
+        this.nodes.output.compressor.knee.value = 8
+        this.nodes.output.compressor.ratio.value = 2.2
+        this.nodes.output.compressor.attack.value = 0.003
+        this.nodes.output.compressor.release.value = 0.12
+
+        this.nodes.output.limiter.threshold.value = -3
         this.nodes.output.limiter.knee.value = 0
-        this.nodes.output.limiter.ratio.value = 20
-        this.nodes.output.limiter.attack.value = 0.001
-        this.nodes.output.limiter.release.value = 0.06
+        this.nodes.output.limiter.ratio.value = 12
+        this.nodes.output.limiter.attack.value = 0.0008
+        this.nodes.output.limiter.release.value = 0.04
 
         this.nodes.mix.final.connect(this.nodes.output.mix)
         this.nodes.mix.final.connect(this.nodes.output.reverb)
         this.nodes.output.reverb.connect(this.nodes.output.reverbGain)
         this.nodes.output.reverbGain.connect(this.nodes.output.mix)
         this.nodes.output.mix.connect(this.nodes.output.lowShelf)
-        this.nodes.output.lowShelf.connect(this.nodes.output.compressor)
+        this.nodes.output.lowShelf.connect(this.nodes.output.presence)
+        this.nodes.output.presence.connect(this.nodes.output.highShelf)
+        this.nodes.output.highShelf.connect(this.nodes.output.compressor)
         this.nodes.output.compressor.connect(masterGainNode)
         masterGainNode.connect(this.nodes.output.limiter)
 
@@ -349,7 +372,7 @@ export class EngineAudio {
         lowRumble.gain.connect(this.nodes.mix.engine)
         lowRumble.oscillator.start()
 
-        rasp.oscillator.type = "square"
+        rasp.oscillator.type = this.carConfig.cylinders == 6 ? "triangle" : "sine"
         rasp.oscillator.frequency.value = 0
         rasp.highpass.type = "highpass"
         rasp.highpass.frequency.value = synthesis.rasp.highpass
@@ -402,10 +425,11 @@ export class EngineAudio {
 
     //fun - createHarmonicVoices()
     private createHarmonicVoices(configs: Harmonic[]): HarmonicVoice[] {
-        return configs.map((cfg) => {
+        return configs.map((cfg, index) => {
             const node = this.ctx.createOscillator()
             node.frequency.value = 0
             node.type = cfg.wave
+            node.detune.value = (index % 2 === 0 ? -1 : 1) * (1.5 + index * 0.35)
 
             const gain = this.ctx.createGain()
             gain.gain.value = 0
@@ -667,9 +691,9 @@ export class EngineAudio {
 
         const gain = this.ctx.createGain()
         const endTime = now + popConfig.duration * durationScale
-        const volume = popConfig.volume * volumeScale * 
+        const volume = popConfig.volume * volumeScale *
             THREE.MathUtils.smoothstep(normalizedRPM, popConfig.min_rpm_normalized, 1)
-            
+
         gain.gain.setValueAtTime(0.0001, now)
         gain.gain.linearRampToValueAtTime(volume, now + 0.006)
         gain.gain.exponentialRampToValueAtTime(0.0001, endTime)
@@ -748,6 +772,8 @@ function createEngineAudioNodes(ctx: AudioContext, listener: THREE.AudioListener
             reverb: ctx.createConvolver(),
             reverbGain: ctx.createGain(),
             lowShelf: ctx.createBiquadFilter(),
+            presence: ctx.createBiquadFilter(),
+            highShelf: ctx.createBiquadFilter(),
             compressor: ctx.createDynamicsCompressor(),
             limiter: ctx.createDynamicsCompressor()
         }
