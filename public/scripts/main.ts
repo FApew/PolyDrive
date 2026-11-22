@@ -2,20 +2,21 @@ import * as THREE from "three"
 import Stats from "stats.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
-import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName, Volumes } from "../../shared/types"
-
 import { config } from "../../shared/YAMLConfigs"
 import { carLobbyVisual } from "./carLobbyVisuals"
 import { modelList } from "./assetsLoader"
 import { updateInfos } from "./UI"
 
+import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName, Volumes, PlayerChangeType, DefaultChange } from "../../shared/types"
+
+//SECTION - Initialization
+
 //NOTE - Global Vars
-let lobbyInitCheck: boolean = false
 let inLobby = false
 
 const cars: LobbyCarList = { own: undefined, others: [] }
 
-const model = modelList[0/*Math.floor(Math.random() * modelList.length)*/]
+const model = modelList[Math.floor(Math.random() * modelList.length)]
 export const currentCarVisuals: CarVisuals = {
     model: model!, 
     color: config.car.models[model!].default_color
@@ -23,12 +24,11 @@ export const currentCarVisuals: CarVisuals = {
 
 const currentPlayer: LobbyPlayer = {
     id: undefined,
-    user: "",
+    username: "",
     carVisuals: currentCarVisuals,
     throttle: 0,
     steer: 0,
-    lights: false,
-    shift: false
+    lights: false
 }
 
 const volumes: Volumes = {
@@ -59,7 +59,6 @@ const socket = io()
 //socket_In - connect
 socket.on("connect", () => {
     console.log("SocketID:", socket.id)
-
     socket.emit("ping", Date.now())
 })
 
@@ -70,14 +69,12 @@ socket.on("pong", (time: number) => {
 
 //socket_In - Init
 socket.on("Init", async () => {
-    if (lobbyInitCheck) return
     currentPlayer.id = socket.id
+
     await lobbyInit()
     updateInfos()
 
-    lobbyInitCheck = true
-
-    //note - URL code param
+    //URL code param
     const code = params.get("code")
     if (code) {
         if (!isLobbyCode(code)) {
@@ -89,6 +86,8 @@ socket.on("Init", async () => {
     }
 })
 
+//!SECTION
+
 //NOTE - KeyPress Listener
 const keys: Record<string, boolean> = {}
 
@@ -99,6 +98,8 @@ window.addEventListener("keydown", e => {
 window.addEventListener("keyup", e => {
     keys[e.key.toLowerCase()] = false
 })
+
+//SECTION - Audio Handlers
 
 //fun - syncAudioVisibility()
 function syncAudioVisibility(): void {
@@ -139,6 +140,7 @@ function activateAudio(): void {
 
         const carsToInitialize = [cars.own, ...cars.others]
         carsToInitialize.forEach(car => car?.initEngineAudio(listener))
+        carsToInitialize.forEach(car => car?.startEngineAudio())
     }).catch((error: unknown) => {
         audioInitPromise = undefined
         console.error("Could not initialize audio:", error)
@@ -151,6 +153,8 @@ window.addEventListener("pageshow", syncAudioVisibility)
 
 window.addEventListener("pointerdown", activateAudio)
 window.addEventListener("keydown", activateAudio)
+
+//!SECTION
 
 //FUNCTION - lobbyInit()
 async function lobbyInit(): Promise<void> {
@@ -209,7 +213,7 @@ async function lobbyInit(): Promise<void> {
     //note - Car Init
     spawnCars([currentPlayer])
 
-    let lastThrottle = 0, lastSteer = 0, lastLights = false, lastShift = false
+    let lastThrottle = 0, lastSteer = 0, lastLights = false
     let pressed: Partial<Record<string, boolean>> = {}
     let pt = -1
 
@@ -231,16 +235,12 @@ async function lobbyInit(): Promise<void> {
         let lights = lastLights
         if (keys["l"] != pressed["l"] && keys["l"]) lights = !lastLights
 
-        let shift = false
-        if ((keys["e"] != pressed["e"] && !lastShift) && !keys["e"]) shift = true
-
         cars.own!.lights = lights
         cars.own!.updateLights()
         
-        if ((lastThrottle != throttle || lastSteer != steer || lastLights != lights || lastShift != shift) && inLobby) {
-            //socket_Out - REQcarUpdate
-            socket.emit("REQcarUpdate", {throttle, steer, lights, shift})
-            if (shift) cars.own!.triggerEngineShift()
+        if ((lastThrottle != throttle || lastSteer != steer || lastLights != lights) && inLobby) {
+            //socket_Out - requestHotUpdate
+            socket.emit("requestHotUpdate", {throttle, steer, lights})
         }
 
         cars.own!.updateWheels(dt)
@@ -250,7 +250,7 @@ async function lobbyInit(): Promise<void> {
 
         cars.own!.updateEngine(dt, volumes.main)
         cars.others.forEach((car) => {
-            car.updateEngine(dt, volumes.main)
+            car.updateEngine(dt, volumes.main * 0.2)
         })
     
         controls.update()
@@ -260,7 +260,6 @@ async function lobbyInit(): Promise<void> {
         lastThrottle = throttle
         lastSteer = steer
         lastLights = lights
-        lastShift = shift
 
         pressed["l"] = keys["l"]
         pressed["e"] = keys["e"]
@@ -270,18 +269,7 @@ async function lobbyInit(): Promise<void> {
 }
 //!FUNCTION
 
-//fun - joinedLobby()
-async function joinedLobby(): Promise<void> {
-    inLobby = true
-
-    const joinButton = document.getElementById("join") as HTMLDivElement
-    joinButton!.id = "ready"
-    joinButton!.innerHTML = "ready"
-
-    const createButton = document.getElementById("create") as HTMLDivElement
-    createButton!.id = "leave"
-    createButton!.innerHTML = "leave lobby"
-}
+//SECTION - Scene Handlers
 
 //fun sceneSetup()
 function sceneSetup(light: boolean = true): void {
@@ -304,43 +292,75 @@ function sceneSetup(light: boolean = true): void {
     if (light) spawnSpotlight(0, 0)
 }
 
-socket.on("lobbyRefresh", (playerList) => {
-    spawnCars(playerList)
-})
-
 //fun - spawnCars()
-function spawnCars(playerList: LobbyPlayer[]): void {
-    scene.clear()
-    sceneSetup(false)
+function spawnCars(playerList: LobbyPlayer[]): void
+function spawnCars(target: LobbyPlayer): void
 
-    cars.own?.dispose()
-    cars.others.forEach(car => {
-        car.dispose()
-    })
+function spawnCars(value: LobbyPlayer[] | LobbyPlayer): void {
+    if (!Array.isArray(value)) {
+        let mesh, idx = -1
 
-    cars.others = []
-    playerList.forEach((player: LobbyPlayer, idx: number) => {
-        const newCar = new carLobbyVisual(player.id!, player.carVisuals.model)
-        if (audioReady && audioListener) newCar.initEngineAudio(audioListener)
-        const x = 3 * idx + (Math.random() - 0.5) * 0.2, z = (Math.random() - 0.5) * 0.2
-        newCar.mesh.position.x = x
-        newCar.mesh.position.z = z
-        setCarColor(player.carVisuals.color, newCar)
-
-        if (player.id == socket.id) { cars.own = newCar }
-        else {
-            cars.others.push(newCar)
+        if (cars.own!.id == value.id) {
+            mesh = cars.own!.mesh
+            cars.own!.dispose()
+        } else {
+            idx = cars.others.findIndex((car) => {return car.id == value.id})
+            mesh = cars.others[idx]!.mesh
+            cars.others[idx]!.dispose()
         }
 
+        const Xpos = mesh.position.x
+        scene.remove(mesh)
+
+        createCarInstance(value, Xpos, idx)
+
+    } else {
+        scene.clear()
+        sceneSetup(false)
+
+        cars.own?.dispose()
+        cars.others.forEach(car => {
+            car.dispose()
+        })
+
+        cars.others = []
+        value.forEach((player: LobbyPlayer, idx: number) => {
+            const Xpos = idx * 3
+
+            createCarInstance(player, Xpos)
+            spawnSpotlight(Xpos, 0)
+        })
+
+        controls.target.set((value.length - 1) * 3 / 2, 0, 0)    
+        controls.minDistance = config.lobby.orbit_constraints.zoom.min * value.length
+        controls.maxDistance = controls.minDistance + (config.lobby.orbit_constraints.zoom.max - config.lobby.orbit_constraints.zoom.min)
+    }
+
+    //fun - createCarInstance()
+    function createCarInstance(player: LobbyPlayer, Xpos: number, idx?: number): void {
+        const newCar = new carLobbyVisual(player.id!, player.carVisuals.model)
+        if (audioReady && audioListener) newCar.initEngineAudio(audioListener)
+        const z = (Math.random() - 0.5) * 0.2
+        newCar.mesh.position.x = Xpos
+        newCar.mesh.position.z = z
+        if (player.carVisuals.color != config.car.models[player.carVisuals.model].default_color) {
+            changeColor(player.carVisuals.color, newCar)
+        }
+
+        if (player.id == socket.id || idx == -1) { cars.own = newCar }
+        else {
+            if (typeof idx == "number") { cars.others[idx] = newCar }
+            else { cars.others.push(newCar) }
+        }
+
+        newCar.startEngineAudio()
+
         scene.add(newCar.mesh)
-
-        spawnSpotlight(x, z)
-    })
-
-    controls.target.set((playerList.length - 1) * 3 / 2, 0, 0)    
-    controls.minDistance = config.lobby.orbit_constraints.zoom.min * playerList.length
-    controls.maxDistance = controls.minDistance + (config.lobby.orbit_constraints.zoom.max - config.lobby.orbit_constraints.zoom.min)
+    }
 }
+
+//socket_In - lobbyRefresh
+socket.on("lobbyRefresh", (playerList) => {spawnCars(playerList)})
 
 //fun - spawnSpotlight()
 function spawnSpotlight(x: number, z: number): void {
@@ -361,92 +381,9 @@ function spawnSpotlight(x: number, z: number): void {
     scene.add(spotlight)
 }
 
-//socket_In - RESvisibleChange
-socket.on("RESvisibleChange", ({playerList, change}) => {
-    if (change === "color") {
-        playerList.forEach((player: LobbyPlayer) => {
-            if (player.id == socket.id) return
+//!SECTION
 
-            const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
-            cars.others[idx]!.setColor(player.carVisuals.color)
-
-            cars.others[idx]!.throttle = player.throttle
-            cars.others[idx]!.steer = player.steer
-            cars.others[idx]!.lights = player.lights
-            cars.others[idx]!.updateLights()
-        })
-    } else if (change === "input") {
-        playerList.forEach((player: LobbyPlayer) => {
-            
-            if (player.id == socket.id) return
-
-            const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
-
-            cars.others[idx]!.throttle = player.throttle
-            cars.others[idx]!.steer = player.steer
-            cars.others[idx]!.lights = player.lights
-            cars.others[idx]!.updateLights()
-            if (player.shift) cars.others[idx]!.triggerEngineShift()
-        })
-    } else if (change === "model") {
-        spawnCars(playerList)
-    }
-})
-
-///fun changeModel()
-export function changeModel(model: CarModelName): void {
-    currentCarVisuals.model = model
-    currentCarVisuals.color = config.car.models[model].default_color
-    updateInfos()
-
-    if (inLobby) {
-        //socket_Out - REQvisibleChange
-        socket.emit("REQvisibleChange", {
-            carVisuals: currentCarVisuals,
-            change: "model"
-        })
-    } else { spawnCars([currentPlayer]) } 
-    
-}
-
-//fun - setCarColor()
-export function setCarColor(color: THREE.ColorRepresentation, target: carLobbyVisual = cars.own!): void {
-    target.setColor(color)
-    if (target.id == socket.id) {
-        currentCarVisuals.color = color
-        updateInfos()
-    }
-
-    if (inLobby) {
-
-        //socket_Out - REQvisibleChange
-        socket.emit("REQvisibleChange", {
-            carVisuals: currentCarVisuals,
-            change: "color"
-        })
-    }
-}
-
-//fun - changeUser()
-export function changeUser(user: string): void {
-    currentPlayer.user = user
-
-    if (inLobby) {
-
-        //socket_Out - REQvisibleChange
-        socket.emit("REQvisibleChange", {
-            carVisuals: currentCarVisuals,
-            change: "user"
-        })
-    }
-}
-
-//fun - changeVolume()
-export function changeVolume(key: keyof Volumes, volume: number): void {
-    volumes[key] = volume
-}
-
-
+//SECTION - Lobby Handlers
 
 //fun - createLobby()
 export async function createLobby(): Promise<void> {
@@ -456,6 +393,39 @@ export async function createLobby(): Promise<void> {
     joinLobby(res.code)
 }
 
+//fun - joinLobby()
+export async function joinLobby(code: string, codeCheck: boolean = true): Promise<boolean> {
+    //socket_IO - checkCode
+    if (!isLobbyCode(code)) return false
+    if (!await socket.emitWithAck("checkCode", code) && codeCheck) return false
+
+    //socket_IO - joinLobby
+    socket.emit("joinLobby", {code: code, user: currentPlayer.username, carVisuals: currentCarVisuals, lights: cars.own!.lights})
+
+    topRightInfo.code = code
+    inLobby = true
+    params.set("code", code)
+
+    updateInfos()
+    updateUrl()
+    updateUI()
+
+    //fun - joinedLobby()
+    function updateUI(): void {
+        inLobby = true
+
+        const joinButton = document.getElementById("join") as HTMLDivElement
+        joinButton!.id = "ready"
+        joinButton!.innerHTML = "ready"
+
+        const createButton = document.getElementById("create") as HTMLDivElement
+        createButton!.id = "leave"
+        createButton!.innerHTML = "leave lobby"
+    }
+
+    return true
+}
+
 //fun - leaveLobby()
 export function leaveLobby(): void {
     params.delete("code")
@@ -463,31 +433,98 @@ export function leaveLobby(): void {
     location.reload()
 }
 
-//fun - joinLobby()
-export async function joinLobby(code: string, codeCheck: boolean = true): Promise<boolean> {
-    //socket_IO - checkCode
-    if (!isLobbyCode(code)) {return false}
-    if (!await socket.emitWithAck("checkCode", code) && codeCheck) { return false }
-
-    //socket_IO - joinLobby
-    const res = await socket.emitWithAck("joinLobby", {code: code, user: currentPlayer.user, carVisuals: currentCarVisuals, lights: cars.own!.lights})
-
-    topRightInfo.code = code
-    inLobby = true
-    updateInfos()
-
-    params.set("code", code)
-    updateUrl()
-
-    joinedLobby()
-
-    return true
-}
-
 //fun - isLobbyCode()
 function isLobbyCode(value: string): boolean {
     return /^[A-Z0-9]{5}$/.test(value)
 }
+
+//!SECTION
+
+//SECTION - Changes Handlers
+
+//fun - changeUser()
+export function changeUser(username: string): void {
+    currentPlayer.username = username
+
+    sendChanges("username")
+}
+
+///fun changeModel()
+export function changeModel(model: CarModelName): void {
+    currentPlayer.carVisuals.model = model
+    currentPlayer.carVisuals.color = config.car.models[model].default_color
+    updateInfos()
+
+    if (!inLobby) spawnCars(currentPlayer)
+
+    sendChanges("model")
+}
+
+//fun - changeColor()
+export function changeColor(color: THREE.ColorRepresentation, target: carLobbyVisual = cars.own!): void {
+    target.setColor(color)
+    if (target.id == socket.id) {
+        currentPlayer.carVisuals.color = color
+        updateInfos()
+
+        sendChanges("color")
+    }
+}
+
+//fun - changeVolume()
+export function changeVolume(key: keyof Volumes, volume: number): void {
+    volumes[key] = volume
+}
+
+//fun - sendChanges()
+function sendChanges(changeType: PlayerChangeType): void {
+    if (!inLobby) return
+
+    const change: DefaultChange = {
+        player: currentPlayer,
+        changeType
+    }
+
+    socket.emit("requestDefaultChange", change)
+}
+
+//socket_In - incomingDefaultChange
+socket.on("incomingDefaultChange", ({player, changeType}: DefaultChange) => {
+    switch (changeType) {
+        case "username": {
+            if (player.id == socket.id) return
+
+            const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
+            cars.others[idx]?.setColor(player.carVisuals.color)
+
+            break
+        }
+        case "model": {
+            spawnCars(player)
+            break
+        }
+        case "color": {
+            if (player.id == socket.id) return
+            const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
+
+            cars.others[idx]?.setColor(player.carVisuals.color)
+
+            break
+        }
+    }
+})
+
+//socket_In - incomingHotUpdate
+socket.on("incomingHotUpdate", (player: LobbyPlayer) => {
+    if (player.id == socket.id) return
+
+    const idx = cars.others.findIndex((obj) => {return obj.id == player.id})
+    const car = cars.others[idx]!
+
+    car.throttle = player.throttle
+    car.steer = player.steer
+    car.lights = player.lights
+})
 
 //fun - updateUrl()
 function updateUrl(): void {

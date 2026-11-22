@@ -6,7 +6,7 @@ import { Server } from "socket.io"
 
 import * as THREE from "three"
 
-import type { Lobby, LobbyPlayer, CarModelName, CarVisuals } from "./shared/types"
+import type { Lobby, LobbyPlayer, CarModelName, CarVisuals, DefaultChange } from "./shared/types"
 
 //SECTION - General Server Init
 const __filename = fileURLToPath(import.meta.url)
@@ -46,15 +46,14 @@ function createLobby(id: string, code: string): void {
 }
 
 //fun - joinLobby()
-function joinLobby(id: string, user: string, carVisuals: CarVisuals, lights: boolean, code: string): void {
+function joinLobby(id: string, username: string, carVisuals: CarVisuals, lights: boolean, code: string): void {
     const newPlayer: LobbyPlayer = {
         id: id,
-        user: user,
+        username: username,
         carVisuals: carVisuals,
         throttle: 0,
         steer: 0,
-        lights: lights,
-        shift: false
+        lights: lights
     }
 
     lobbyRecord[code]!.playerList.push(newPlayer)
@@ -120,7 +119,7 @@ io.on("connection", (socket) => {
     })
 
     //socket_IO - joinLobby
-    socket.on("joinLobby", ({code, user, carVisuals, lights}: {code: string, user: string, carVisuals: CarVisuals, lights: boolean}, ack) => {
+    socket.on("joinLobby", ({code, user, carVisuals, lights}) => {
         if (lobbyRecord[code] == undefined) createLobby(socket.id, code)
         joinLobby(socket.id, user, carVisuals, lights, code)
         
@@ -130,8 +129,6 @@ io.on("connection", (socket) => {
 
         const playerIDsList = playerList.map((obj) => {return obj.id!})
         io.to(playerIDsList).emit("lobbyRefresh", playerList)
-
-        ack({playerList: playerList})
     })
 
     //socket_IO - checkCode
@@ -141,36 +138,56 @@ io.on("connection", (socket) => {
         ack(res)
     })
 
-    //socket_In - REQvisibleChange
-    socket.on("REQvisibleChange", ({carVisuals, change}) => {
+    //socket_In - requestDefaultChange
+    socket.on("requestDefaultChange", ({player, changeType}: DefaultChange) => {
         const code = playerRecord[socket.id]
+        
         if (code && lobbyRecord[code]) {
 
             const playerList = lobbyRecord[code].playerList
             const idx = playerList.findIndex((player) => {return player.id == socket.id})
-
-            playerList[idx]!.carVisuals = carVisuals
+            const target = playerList[idx]
+            
+            switch (changeType) {
+                case "username": {
+                    target!.username = player!.username
+                }
+                case "color": {
+                    target!.carVisuals.color = player!.carVisuals.color
+                    break
+                }
+                case "model": {
+                    target!.carVisuals.model = player!.carVisuals.model
+                    break
+                }
+            }
 
             const playerIDsList = playerList.map((obj) => {return obj.id!})
-            io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: change}))
+
+            const change: DefaultChange = {
+                player: target!,
+                changeType
+            }
+
+            io.to(playerIDsList).emit("incomingDefaultChange", change)
         }
     })
 
-    //socket_In - REQwheelsUpdate
-    socket.on("REQcarUpdate", ({throttle, steer, lights, shift}) => {
+    //socket_In - requestHotUpdate
+    socket.on("requestHotUpdate", ({throttle, steer, lights}) => {
         const code = playerRecord[socket.id]
         if (code && lobbyRecord[code]) {
 
             const playerList = lobbyRecord[code].playerList
             const idx = playerList.findIndex((player) => {return player.id == socket.id})
+            const target = playerList[idx]
 
-            playerList[idx]!.throttle = throttle
-            playerList[idx]!.steer = steer
-            playerList[idx]!.lights = lights
-            playerList[idx]!.shift = shift
+            target!.throttle = throttle
+            target!.steer = steer
+            target!.lights = lights
 
             const playerIDsList = playerList.map((obj) => {return obj.id!})
-            io.to(playerIDsList).emit("RESvisibleChange", ({playerList: playerList, change: "input"}))
+            io.to(playerIDsList).emit("incomingHotUpdate", target)
         }
     })
     

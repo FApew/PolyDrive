@@ -1,0 +1,125 @@
+{
+  "_comment": [
+    "A crossplane inline four, of the sort Yamaha put in the R1: 998 cc, four",
+    "cylinders in a row, but with the crankpins at 0/90/270/180 instead of the",
+    "usual 0/180/180/0. It fires at 270-180-90-180 degrees rather than evenly,",
+    "which is why it sounds like a V-twin with a stutter instead of like a",
+    "normal four.",
+    "",
+    "Nothing here is code. This is the shape an engine takes when it lives in a",
+    "game's content pipeline: load the JSON, hand it straight to",
+    "createEngineSound. The crossplane firing pattern is not written down —",
+    "it falls out of the journal angles and the firing order below.",
+    "",
+    "Units are SI throughout: metres, cubic metres, radians, rad/s, newton",
+    "metres. See js/README.md for what each field means."
+  ],
+
+  "name": "Crossplane Inline Four",
+  "preset": "inline4",
+
+  "layout": {
+    "banks": [0],
+    "exhausts": [
+      {
+        "length": 1.6,
+        "collectorArea": 0.0016,
+        "outletFlowScfm": 320,
+        "primaryTubeLength": 0.42,
+        "primaryFlowScfm": 160,
+        "velocityDecay": 0.5,
+        "audioVolume": 0.24
+      }
+    ],
+    "cylinders": [
+      { "bank": 0, "journalAngle": 0.0,     "exhaust": 0, "headerPrimaryLength": 0.06, "soundAttenuation": 1.0 },
+      { "bank": 0, "journalAngle": 1.5708,  "exhaust": 0, "headerPrimaryLength": 0.10, "soundAttenuation": 0.95 },
+      { "bank": 0, "journalAngle": 4.7124,  "exhaust": 0, "headerPrimaryLength": 0.14, "soundAttenuation": 1.05 },
+      { "bank": 0, "journalAngle": 3.1416,  "exhaust": 0, "headerPrimaryLength": 0.18, "soundAttenuation": 0.9 }
+    ]
+  },
+
+  "_firingOrderComment": "1-2-4-3. With those journal angles this lands on 0, 270, 450 and 540 degrees.",
+  "firingOrder": [0, 2, 1, 3],
+
+  "params": {
+    "bore": 0.079,
+    "crankThrow": 0.02545,
+    "rodLength": 0.1035,
+    "compressionHeight": 0.019,
+    "deckHeight": 0.148,
+
+    "_chamberVolume": "21 cc, which is 12.9:1 on a 249.5 cc cylinder",
+    "chamberVolume": 2.1e-5,
+
+    "intakeRunnerVolume": 6.5e-5,
+    "intakeRunnerArea": 0.0011,
+    "exhaustRunnerVolume": 3.5e-5,
+    "exhaustRunnerArea": 0.00085,
+
+    "_breathing": "Individual throttle bodies, sized for one litre at 12000 rpm.",
+    "intakeInputFlowK": 0.00042,
+    "intakeRunnerFlowRate": 0.00013,
+    "intakePlenumVolume": 0.008,
+    "intakePlenumArea": 0.0028,
+    "intakeRunnerLength": 0.09,
+    "intakeIdlePlatePosition": 0.994,
+
+    "_inertia": "A motorcycle crank is light, so it picks up and drops fast.",
+    "momentOfInertia": 0.055,
+    "frictionTorque": 6.0,
+
+    "_windage": "Multiplies omega squared, so it is a small number: at the",
+    "_windage2": "limiter this is about 47 Nm. Roughly 0.03 x displacement.",
+    "windageCoefficient": 3.0e-5,
+
+    "revLimit": 1256.6,
+    "starterTorque": 90.0,
+    "starterSpeed": 41.9,
+
+    "intakeLobeCenter": 1.7453,
+    "exhaustLobeCenter": 1.7453
+  },
+
+  "cam": {
+    "_comment": "Short duration, high lift, as a high-revving four wants.",
+    "intakeDuration": 4.1015,
+    "intakeLift": 0.0091,
+    "exhaustDuration": 3.9968,
+    "exhaustLift": 0.0086,
+    "gamma": 0.9
+  },
+
+  "portFlow": {
+    "_comment": "Valve lift in metres against flow-bench SCFM at 28 inH2O.",
+    "intake": [
+      [0.0, 0],
+      [0.00127, 26],
+      [0.00254, 52],
+      [0.00381, 76],
+      [0.00508, 95],
+      [0.00635, 108],
+      [0.00762, 116],
+      [0.00889, 120]
+    ],
+    "exhaust": [
+      [0.0, 0],
+      [0.00127, 20],
+      [0.00254, 39],
+      [0.00381, 56],
+      [0.00508, 69],
+      [0.00635, 78],
+      [0.00762, 84],
+      [0.00889, 87]
+    ]
+  },
+
+  "audio": {
+    "_comment": "A bike engine with no bodywork: hard-edged and busy.",
+    "volume": 0.9,
+    "highFrequencyGain": 0.02,
+    "jitter": 0.22,
+    "noise": 1.0,
+    "convolution": 1.0
+  }
+}

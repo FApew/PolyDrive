@@ -1,0 +1,17 @@
+# Rust build output.
+/target/
+
+# npm, though the package has no runtime dependencies of its own.
+node_modules/
+
+# Rendered audio from the examples.
+*.wav
+!mr-stdlib/**/*.wav
+
+# Editor and OS noise.
+.DS_Store
+*.swp
+
+# Note: js/src/engine_sound.wasm and js/src/worklet-source.js are generated but
+# deliberately tracked, so the package works with no build step. Tests assert
+# they are not stale — see js/test/generated.test.mjs.

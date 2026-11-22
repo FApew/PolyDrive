@@ -1,0 +1,331 @@
+/*
+ * Fiat 500 L (1968) — engine 110F.000
+ *
+ * 499.5 cc air-cooled OHV parallel twin, 67.4 x 70 mm, 7.1:1, 18 hp at
+ * 4600 rpm, one Weber 26 IMB carburettor for both cylinders.
+ *
+ * The crank is a 360 degree one: both pistons rise and fall together and fire
+ * one full revolution apart, which is what gives the even beat. A modern
+ * parallel twin uses 270 degree pins and sounds lopsided by comparison.
+ *
+ * Published figures: bore, stroke, capacity, compression ratio, power peak,
+ * carburettor. Estimated from typical practice for an engine of this type:
+ * connecting rod length, compression height, rotating inertia, port flow, cam
+ * duration and lift.
+ *
+ * This is the same engine as the library's `fiat500` preset; a test loads this
+ * file and checks the two still agree.
+ */
+
+import "engine_sim.mr"
+
+units units()
+constants constants()
+impulse_response_library ir_lib()
+
+label cycle(2 * 360 * units.deg)
+
+// --- geometry ---------------------------------------------------------------
+
+label bore(67.4 * units.mm)
+label stroke(70.0 * units.mm)
+label rod_length(118.0 * units.mm)
+label compression_height(30.0 * units.mm)
+label deck_height(stroke / 2 + rod_length + compression_height)
+
+label displacement_per_cylinder(circle_area(bore / 2) * stroke)
+label compression_ratio(7.1)
+label chamber_volume(displacement_per_cylinder / (compression_ratio - 1.0))
+
+// --- ignition wiring --------------------------------------------------------
+
+private node wires {
+    output wire1: ignition_wire();
+    output wire2: ignition_wire();
+}
+
+// --- cylinder head ----------------------------------------------------------
+
+// Small two-valve chamber with a ~28 mm inlet valve. The exhaust side flows
+// about three quarters of the inlet, as usual for a plain pushrod head.
+private node fiat_500_head {
+    input intake_camshaft;
+    input exhaust_camshaft;
+    alias output __out: head;
+
+    function intake_flow(50 * units.thou)
+    intake_flow
+        .add_flow_sample(0, 0)
+        .add_flow_sample(50, 18)
+        .add_flow_sample(100, 32)
+        .add_flow_sample(150, 42)
+        .add_flow_sample(200, 48)
+        .add_flow_sample(250, 52)
+        .add_flow_sample(300, 54)
+
+    function exhaust_flow(50 * units.thou)
+    exhaust_flow
+        .add_flow_sample(0, 0)
+        .add_flow_sample(50, 13)
+        .add_flow_sample(100, 23)
+        .add_flow_sample(150, 31)
+        .add_flow_sample(200, 36)
+        .add_flow_sample(250, 39)
+        .add_flow_sample(300, 41)
+
+    generic_cylinder_head head(
+        chamber_volume: chamber_volume,
+        intake_runner_volume: 55.0 * units.cc,
+        intake_runner_cross_section_area: (26.0 * units.mm) * (26.0 * units.mm),
+        exhaust_runner_volume: 30.0 * units.cc,
+        exhaust_runner_cross_section_area: (24.0 * units.mm) * (24.0 * units.mm),
+
+        intake_port_flow: intake_flow,
+        exhaust_port_flow: exhaust_flow,
+        valvetrain: standard_valvetrain(
+            intake_camshaft: intake_camshaft,
+            exhaust_camshaft: exhaust_camshaft
+        )
+    )
+}
+
+// --- camshaft ---------------------------------------------------------------
+
+// Mild pushrod cam: short duration, modest lift, wide lobe centres.
+private node fiat_500_camshaft {
+    input lobe_profile;
+    input lobe_separation: 112 * units.deg;
+    input advance: 0 * units.deg;
+    input base_radius: 0.5 * units.inch;
+
+    output intake_cam: _intake_cam;
+    output exhaust_cam: _exhaust_cam;
+
+    camshaft_parameters params(advance: advance, base_radius: base_radius)
+
+    camshaft _intake_cam(params, lobe_profile: lobe_profile)
+    camshaft _exhaust_cam(params, lobe_profile: lobe_profile)
+
+    label rot360(360 * units.deg)
+
+    // Both cylinders share a crank throw, so their lobes sit one revolution
+    // apart, matching the ignition wiring below.
+    _intake_cam
+        .add_lobe(rot360 + lobe_separation)
+        .add_lobe(rot360 + lobe_separation + rot360)
+    _exhaust_cam
+        .add_lobe(rot360 - lobe_separation)
+        .add_lobe(rot360 - lobe_separation + rot360)
+}
+
+private node turbulence_to_flame_speed_ratio {
+    alias output __out:
+        function(5.0)
+            .add_sample(0.0, 3.0)
+            .add_sample(5.0, 1.5 * 5.0)
+            .add_sample(10.0, 1.75 * 10.0)
+            .add_sample(15.0, 2.0 * 15.0)
+            .add_sample(20.0, 2.0 * 20.0)
+            .add_sample(25.0, 2.0 * 25.0)
+            .add_sample(30.0, 2.0 * 30.0)
+            .add_sample(35.0, 2.0 * 35.0)
+            .add_sample(40.0, 2.0 * 40.0)
+            .add_sample(45.0, 2.0 * 45.0);
+}
+
+// --- engine -----------------------------------------------------------------
+
+public node fiat_500_l {
+    alias output __out: engine;
+
+    engine engine(
+        name: "Fiat 500 L (1968)",
+        starter_torque: 60 * units.lb_ft,
+        starter_speed: 280 * units.rpm,
+        redline: 4600 * units.rpm,
+        throttle_gamma: 2.0,
+        fuel: fuel(
+            max_burning_efficiency: 1.0,
+            max_dilution_effect: 50.0,
+            turbulence_to_flame_speed_ratio: turbulence_to_flame_speed_ratio()
+        ),
+        // Air-cooled and thin-panelled: mechanical edge, little damping.
+        hf_gain: 0.022,
+        noise: 1.0,
+        jitter: 0.32,
+        simulation_frequency: 10000
+    )
+
+    wires wires()
+
+    // Small, but the cast flywheel also drives the cooling fan.
+    crankshaft c0(
+        throw: stroke / 2,
+        flywheel_mass: 15 * units.lb,
+        mass: 20 * units.lb,
+        friction_torque: 3.0 * units.lb_ft,
+        moment_of_inertia: 0.085,
+        position_x: 0.0,
+        position_y: 0.0,
+        tdc: 90 * units.deg
+    )
+
+    // A 360 degree crank: both rods run on the same throw.
+    rod_journal rj0(angle: 0 * units.deg)
+    rod_journal rj1(angle: 0 * units.deg)
+    c0
+        .add_rod_journal(rj0)
+        .add_rod_journal(rj1)
+
+    piston_parameters piston_params(
+        mass: 300 * units.g,
+        compression_height: compression_height,
+        wrist_pin_position: 0.0,
+        displacement: 0.0
+    )
+
+    connecting_rod_parameters cr_params(
+        mass: 250 * units.g,
+        moment_of_inertia: rod_moment_of_inertia(
+            mass: 250 * units.g,
+            length: rod_length
+        ),
+        center_of_mass: 0.0,
+        length: rod_length
+    )
+
+    // One 26 mm Weber for both cylinders. At 4600 rpm the engine wants about
+    // 40 CFM at 100% volumetric efficiency, and this is what stops it getting
+    // there — the reason it makes 18 hp and runs out of breath below the
+    // limiter. The idle stop sits further open than a car engine's: a 500
+    // idles near 800 rpm.
+    intake intake(
+        plenum_volume: 0.55 * units.L,
+        plenum_cross_section_area: 5.3 * units.cm2,
+        intake_flow_rate: k_carb(42.0),
+        runner_flow_rate: k_carb(24.0),
+        runner_length: 18.0 * units.cm,
+        idle_flow_rate: k_carb(0.0),
+        idle_throttle_plate_position: 0.986,
+        velocity_decay: 0.5
+    )
+
+    // Both pots into one small silencer, tucked in behind the engine.
+    exhaust_system exhaust(
+        length: 1.4 * units.m,
+        collector_cross_section_area: 9.0 * units.cm2,
+        outlet_flow_rate: k_carb(60.0),
+        primary_tube_length: 35.0 * units.cm,
+        primary_flow_rate: k_carb(30.0),
+        velocity_decay: 0.5,
+        audio_volume: 0.22,
+        impulse_response: ir_lib.default_0
+    )
+
+    cylinder_bank_parameters bank_params(
+        bore: bore,
+        deck_height: deck_height
+    )
+
+    cylinder_bank b0(bank_params, angle: 0.0)
+    b0
+        .add_cylinder(
+            piston: piston(piston_params, blowby: k_28inH2O(0.05)),
+            connecting_rod: connecting_rod(cr_params),
+            rod_journal: rj0,
+            intake: intake,
+            exhaust_system: exhaust,
+            ignition_wire: wires.wire1,
+            sound_attenuation: 1.0,
+            primary_length: 12 * units.cm
+        )
+        .add_cylinder(
+            piston: piston(piston_params, blowby: k_28inH2O(0.05)),
+            connecting_rod: connecting_rod(cr_params),
+            rod_journal: rj1,
+            intake: intake,
+            exhaust_system: exhaust,
+            ignition_wire: wires.wire2,
+            sound_attenuation: 0.95,
+            primary_length: 20 * units.cm
+        )
+        .set_cylinder_head(
+            fiat_500_head(
+                intake_camshaft: camshaft.intake_cam,
+                exhaust_camshaft: camshaft.exhaust_cam
+            )
+        )
+
+    engine
+        .add_cylinder_bank(b0)
+
+    engine.add_crankshaft(c0)
+
+    harmonic_cam_lobe lobe(
+        duration_at_50_thou: 200 * units.deg,
+        gamma: 0.9,
+        lift: 260 * units.thou,
+        steps: 256
+    )
+
+    fiat_500_camshaft camshaft(
+        lobe_profile: lobe,
+        lobe_separation: 112 * units.deg,
+        base_radius: 0.5 * units.inch
+    )
+
+    // Points and a distributor: little advance, and not much of it.
+    function timing_curve(1000 * units.rpm)
+    timing_curve
+        .add_sample(0000 * units.rpm, 10 * units.deg)
+        .add_sample(1000 * units.rpm, 10 * units.deg)
+        .add_sample(2000 * units.rpm, 20 * units.deg)
+        .add_sample(3000 * units.rpm, 26 * units.deg)
+        .add_sample(4000 * units.rpm, 28 * units.deg)
+        .add_sample(5000 * units.rpm, 28 * units.deg)
+        .add_sample(6000 * units.rpm, 28 * units.deg)
+
+    // Well above where it actually runs out of air; the carburettor is the
+    // real limit, not the limiter.
+    ignition_module ignition_module(
+        timing_curve: timing_curve,
+        rev_limit: 5400 * units.rpm,
+        limiter_duration: 0.1
+    )
+    ignition_module
+        .connect_wire(wires.wire1, 0 * units.deg)
+        .connect_wire(wires.wire2, 360 * units.deg)
+
+    engine.add_ignition_module(ignition_module)
+}
+
+// --- car --------------------------------------------------------------------
+
+private node fiat_500_vehicle {
+    alias output __out:
+        vehicle(
+            mass: 499 * units.kg,
+            drag_coefficient: 0.42,
+            cross_sectional_area: (52 * units.inch) * (53 * units.inch),
+            diff_ratio: 5.125,
+            tire_radius: 10 * units.inch,
+            rolling_resistance: 100 * units.N
+        );
+}
+
+private node fiat_500_transmission {
+    alias output __out:
+        transmission(
+            max_clutch_torque: 100 * units.lb_ft
+        )
+        .add_gear(3.25)
+        .add_gear(2.067)
+        .add_gear(1.3)
+        .add_gear(0.872);
+}
+
+public node main {
+    set_engine(fiat_500_l())
+    set_vehicle(fiat_500_vehicle())
+    set_transmission(fiat_500_transmission())
+}

@@ -1,7 +1,7 @@
 import * as THREE from "three"
 import iro from "@jaames/iro"
 
-import { currentCarVisuals, setCarColor, createLobby, leaveLobby, joinLobby, topRightInfo, changeModel, changeVolume, changeUser } from "./main"
+import { currentCarVisuals, changeColor, createLobby, leaveLobby, joinLobby, topRightInfo, changeModel, changeVolume, changeUser } from "./main"
 
 import { config } from "../../shared/YAMLConfigs"
 import { imgs, modelList } from "./assetsLoader"
@@ -29,7 +29,7 @@ join_ready.addEventListener("click", async (e) => {
         const code: string = codeInput.value.toUpperCase()
         if (code.length < 5) {alert("Enter a 5 digit code"); return}
 
-        if (!await joinLobby(code)) { console.log("test"); alert("Code is invalid") }
+        if (!await joinLobby(code)) { alert("Code is invalid") }
 
     } else if (target.id == "ready") { console.log("brao") }
 })
@@ -58,9 +58,6 @@ settings.addEventListener("click", () => {
     sideBarVal = sideBarVal == 2 ? 0 : 2
     updateSideBar()
 })
-
-sideBarVal = 2
-updateSideBar()
 
 //FUNCTION - async updateSideBar()
 async function updateSideBar(): Promise<void> {
@@ -157,7 +154,7 @@ async function updateSideBar(): Promise<void> {
         colorPicker.appendChild(currentColor)
 
         picker.on("color:change", (color: iro.Color) => {
-            updateColorUI(color)
+            updateColorUI(color, true)
         })
 
         modelList.forEach((model: CarModelName) => {
@@ -187,7 +184,7 @@ async function updateSideBar(): Promise<void> {
         })
 
         //fun - updateColorUI()
-        function updateColorUI(color: iro.Color): void {
+        function updateColorUI(color: iro.Color, send = false): void {
             currentColor.style.background = color.hexString
             currentColor.innerHTML = color.hexString
 
@@ -197,7 +194,7 @@ async function updateSideBar(): Promise<void> {
             currentColor.style.color = l > 0.5 ? "#000" : "#fff"
 
             lastColor = parseInt(color.hexString.replace("#", ""), 16);
-            setCarColor(lastColor)
+            if (send) changeColor(lastColor)
         }
     }
 

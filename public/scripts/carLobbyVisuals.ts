@@ -1,3 +1,4 @@
+
 import * as THREE from "three"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
@@ -5,23 +6,23 @@ import type { Vec3, CarModelName } from "../../shared/types"
 import { config } from "../../shared/YAMLConfigs"
 import { EngineAudio } from "./engineAudio"
 
-//note - GLTF Loader
+// GLTF Loader
 const modelsLoader = new GLTFLoader()
 
-//Car Models
-const [ giuliaGLTF, f40GLTF, tireGLTF ] = await Promise.all([
+// Car Models
+const [giuliaGLTF, f40GLTF, tireGLTF] = await Promise.all([
     modelsLoader.loadAsync("../assets/models/giulia.glb"),
     modelsLoader.loadAsync("../assets/models/f40.glb"),
     modelsLoader.loadAsync("../assets/models/tire.glb")
 ])
 
 const models: Record<CarModelName | "tire", THREE.Group> = {
-    "giulia": giuliaGLTF.scene,
-    "f40": f40GLTF.scene,
-    "tire": tireGLTF.scene
+    giulia: giuliaGLTF.scene,
+    f40: f40GLTF.scene,
+    tire: tireGLTF.scene
 }
 
-//CLASS - carLobbyVisual
+// CLASS - carLobbyVisual
 export class carLobbyVisual {
     id: string
     model: CarModelName
@@ -39,18 +40,18 @@ export class carLobbyVisual {
     lights: boolean = false
 
     private currentWheelsSpeed: number = 0
-    private currentRPM: number
-    
+    private currentRPM: number = 0
+
     private engineAudio: EngineAudio | null = null
 
-    //fun - constructor()
+    // Constructor
     constructor(id: string, model: CarModelName) {
         this.id = id
         this.model = model
 
         const carGroup = new THREE.Group()
 
-        //note - Chassis
+        // Chassis
         const carChassis = models[model]!.clone(true)
 
         carChassis.traverse((child) => {
@@ -61,7 +62,9 @@ export class carLobbyVisual {
                     child.material = child.material.clone()
                 }
 
-                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                const materials = Array.isArray(child.material)
+                    ? child.material
+                    : [child.material]
 
                 materials.forEach((mat) => {
                     if (mat instanceof THREE.MeshStandardMaterial) {
@@ -86,22 +89,27 @@ export class carLobbyVisual {
         this.chassis = carChassis
         carGroup.add(carChassis)
 
-        //note - Wheels
+        // Wheels
         for (const i of [1, -1]) {
             for (const j of [1, -1]) {
                 const wheel = models["tire"]!.clone(true)
                 const wheelPos: Vec3 = config.car.models[model].wheel_pos
-                wheel.position.set(wheelPos.x * j, wheelPos.y, wheelPos.z * i)
+
+                wheel.position.set(
+                    wheelPos.x * j,
+                    wheelPos.y,
+                    wheelPos.z * i
+                )
 
                 const s = config.car.models[model].wheel_size
                 wheel.scale.set(s, s, s)
-                
+
                 this.wheelMesh.push(wheel)
                 carGroup.add(wheel)
             }
         }
 
-        //note Headlights
+        // Headlights
         for (const i of [1, -1]) {
             const spotlight = new THREE.SpotLight(
                 0xffffff,
@@ -113,8 +121,13 @@ export class carLobbyVisual {
             )
 
             const vec3 = config.car.models[model].headlights_pos
+
             spotlight.position.set(vec3.x * i, vec3.y, vec3.z)
-            spotlight.target.position.set(vec3.x * i, vec3.y, vec3.z + 12)
+            spotlight.target.position.set(
+                vec3.x * i,
+                vec3.y,
+                vec3.z + 12
+            )
 
             carGroup.add(spotlight)
             carGroup.add(spotlight.target)
@@ -122,7 +135,7 @@ export class carLobbyVisual {
             this.headlights.push(spotlight)
         }
 
-        //note Backlights
+        // Backlights
         for (const i of [1, -1]) {
             const spotlight = new THREE.SpotLight(
                 0xff0000,
@@ -134,12 +147,16 @@ export class carLobbyVisual {
             )
 
             const vec3 = config.car.models[model].backlights_pos
+
             spotlight.position.set(vec3.x * i, vec3.y, vec3.z)
-            spotlight.target.position.set(vec3.x * i, vec3.y, vec3.z - 12)
+            spotlight.target.position.set(
+                vec3.x * i,
+                vec3.y,
+                vec3.z - 12
+            )
 
             carGroup.add(spotlight)
             carGroup.add(spotlight.target)
-            
 
             this.backlights.push(spotlight)
         }
@@ -150,19 +167,19 @@ export class carLobbyVisual {
             if (child instanceof THREE.Mesh) child.castShadow = true
         })
 
-        this.currentRPM = config.car.models[this.model].rpm.min
-
         this.updateLights()
         this.mesh = carGroup
     }
 
-    //fun - getDefaultColor()
+    // getDefaultColor()
     getDefaultColor(): THREE.ColorRepresentation {
         let color = 0xffffff
 
         this.chassis.traverse((child) => {
             if (child instanceof THREE.Mesh) {
-                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                const materials = Array.isArray(child.material)
+                    ? child.material
+                    : [child.material]
 
                 const paint = materials.find(mat => mat.name == "paint")
 
@@ -175,11 +192,13 @@ export class carLobbyVisual {
         return color
     }
 
-    //fun - setColor()
+    // setColor()
     setColor(color: THREE.ColorRepresentation): void {
         this.chassis.traverse((child) => {
             if (child instanceof THREE.Mesh) {
-                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                const materials = Array.isArray(child.material)
+                    ? child.material
+                    : [child.material]
 
                 const paint = materials.find(mat => mat.name == "paint")
 
@@ -190,26 +209,36 @@ export class carLobbyVisual {
         })
     }
 
+    // updateWheels()
     updateWheels(dt: number): void {
-
         this.currentWheelsSpeed = THREE.MathUtils.lerp(
-            this.currentWheelsSpeed, this.currentRPM > config.car.models[this.model].rpm.min * 1.2 ? dt * this.currentRPM * 2*Math.PI / 60 : 0, 1 - Math.exp(-5 * dt / 1000)
+            this.currentWheelsSpeed,
+            this.currentRPM > 1200 * 1.2
+                ? dt * this.currentRPM * 2 * Math.PI / 60
+                : 0,
+            1 - Math.exp(-5 * dt / 1000)
         )
 
         const currentSteer = THREE.MathUtils.lerp(
-            this.wheelMesh[0]!.rotation.y, this.steer * 0.7, 1 - Math.exp(-5 * dt / 1000)
+            this.wheelMesh[0]!.rotation.y,
+            this.steer * 0.7,
+            1 - Math.exp(-5 * dt / 1000)
         )
 
         this.wheelMesh[0]!.rotation.y = currentSteer
         this.wheelMesh[1]!.rotation.y = currentSteer
+
         this.wheelMesh[2]!.rotateX(this.currentWheelsSpeed / 8000)
         this.wheelMesh[3]!.rotateX(this.currentWheelsSpeed / 8000)
     }
 
+    // updateLights()
     updateLights(): void {
         this.chassis.traverse((child) => {
             if (child instanceof THREE.Mesh) {
-                const materials = Array.isArray(child.material) ? child.material : [child.material]
+                const materials = Array.isArray(child.material)
+                    ? child.material
+                    : [child.material]
 
                 materials.forEach((mat) => {
                     if (mat instanceof THREE.MeshStandardMaterial) {
@@ -221,39 +250,46 @@ export class carLobbyVisual {
             }
         })
 
-        this.headlights.forEach((light) => {
+        this.headlights.forEach(light => {
             light.visible = this.lights
         })
 
-        this.backlights.forEach((light) => {
+        this.backlights.forEach(light => {
             light.visible = this.lights
         })
     }
 
+    // initEngineAudio()
     initEngineAudio(listener: THREE.AudioListener): void {
+        this.engineAudio?.dispose()
         this.engineAudio = new EngineAudio(listener, this.mesh, this.model)
     }
 
+    // startEngineAudio()
+    // MUST be called from a user interaction (e.g. button click)
+    async startEngineAudio(): Promise<void> {
+        await this.engineAudio?.start()
+        this.engineAudio?.setGear(0)
+    }
+
+    // updateEngine()
     updateEngine(dt: number, master: number): void {
         if (!this.engineAudio) return
 
-        const { min: idleRPM, max: redlineRPM } = config.car.models[this.model].rpm
-
-        const target = idleRPM + this.throttle * (redlineRPM * 1.02 - idleRPM)
-
-        const rate = target > this.currentRPM ? 3 : 4              // revs up faster than it falls
-        this.currentRPM = THREE.MathUtils.lerp(this.currentRPM, target, 1 - Math.exp(-rate * dt / 1000))
-        this.engineAudio?.update(this.throttle, this.currentRPM, master, dt)
+        this.engineAudio.setThrottle(this.throttle)
+        this.currentRPM = this.engineAudio.rpm
+        this.engineAudio.update(master, dt / 1000)
     }
 
-    //fun - triggerEngineShift()
+    // triggerEngineShift()
     triggerEngineShift(): void {
-        this.engineAudio?.triggerShift()
+        this.engineAudio?.setTransmissionMode("automatic")
+        //this.engineAudio?.shiftUp()
     }
 
-    //fun - dispose()
+    // dispose()
     dispose(): void {
-        this.engineAudio?.dispose(this.mesh)
+        this.engineAudio?.dispose()
         this.engineAudio = null
     }
 }

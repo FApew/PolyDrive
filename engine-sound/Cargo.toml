@@ -1,0 +1,15 @@
+[package]
+name = "engine-sound"
+version = "0.1.0"
+edition = "2021"
+description = "Physically-based engine sound synthesis (port of the engine-sim audio algorithm) with a WASM/React front-end"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

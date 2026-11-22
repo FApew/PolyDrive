@@ -1,0 +1,53 @@
+{
+  "name": "engine-sound",
+  "version": "0.1.0",
+  "description": "Physically simulated engine sound for the web, in Rust + WebAssembly, with a React hook",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./react": {
+      "types": "./src/react.d.ts",
+      "default": "./src/use-engine-sound.js"
+    },
+    "./examples/fiat500.js": "./examples/fiat500.js",
+    "./worklet.js": "./src/worklet.js",
+    "./engine_sound.wasm": "./src/engine_sound.wasm"
+  },
+  "files": [
+    "src",
+    "examples",
+    "scripts",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build:worklet": "node scripts/build-worklet.mjs",
+    "build": "npm run build:wasm && npm run build:worklet",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "audio",
+    "engine",
+    "synthesis",
+    "webassembly",
+    "audioworklet",
+    "react",
+    "rust"
+  ]
+}

@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>engine-sound demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101215;
+        --panel: #191d22;
+        --line: #2b3138;
+        --text: #e7eaee;
+        --dim: #8c959f;
+        --accent: #ff7a3d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .panel {
+        width: min(560px, 100%);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 24px;
+      }
+      h1 { margin: 0 0 4px; font-size: 19px; }
+      p.sub { margin: 0 0 20px; color: var(--dim); font-size: 13px; }
+      .row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+      .row > label { width: 110px; color: var(--dim); font-size: 13px; flex: none; }
+      input[type='range'] { flex: 1; accent-color: var(--accent); }
+      select, button {
+        background: #232830;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font: inherit;
+      }
+      button { cursor: pointer; }
+      button:hover:not(:disabled) { border-color: var(--accent); }
+      button:disabled { opacity: 0.45; cursor: default; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #17120e; font-weight: 600; }
+      button.active { border-color: var(--accent); color: var(--accent); }
+      .gauges {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 20px 0 8px;
+      }
+      .gauge {
+        background: #12151a;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .gauge .label { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .gauge .value { font-size: 22px; font-variant-numeric: tabular-nums; }
+      .tach { height: 6px; background: #12151a; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+      .tach > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 60ms linear; }
+      .hint { color: var(--dim); font-size: 12px; margin-top: 16px; }
+      .error { color: #ff6b6b; font-size: 13px; margin-top: 12px; }
+      .gears { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+      .gears button {
+        flex: 1 1 0; min-width: 34px; padding: 8px 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .gears button.on {
+        background: var(--accent); border-color: var(--accent);
+        color: #17120e; font-weight: 600;
+      }
+      .spec {
+        margin-top: 14px; padding: 12px 14px;
+        background: #12151a; border: 1px solid var(--line); border-radius: 10px;
+      }
+      .spec[hidden] { display: none; }
+      .spec h2 {
+        margin: 0 0 8px; font-size: 14px; font-weight: 600;
+        display: flex; align-items: baseline; gap: 8px;
+      }
+      .spec h2 .from {
+        font-size: 11px; font-weight: 400; color: var(--dim);
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .spec dl {
+        margin: 0; display: grid; gap: 4px 16px;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+      .spec div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+      .spec dt { color: var(--dim); }
+      .spec dd { margin: 0; font-variant-numeric: tabular-nums; }
+      select:disabled { opacity: 0.45; }
+      .drop {
+        margin-top: 16px; padding: 14px; text-align: center;
+        border: 1px dashed var(--line); border-radius: 10px;
+        color: var(--dim); font-size: 13px; cursor: pointer;
+        transition: border-color 120ms, color 120ms;
+      }
+      .drop:hover, .drop.over { border-color: var(--accent); color: var(--text); }
+      .drop.rejected { border-color: #ff6b6b; color: #ff6b6b; }
+      .drop input { display: none; }
+      .warnings {
+        margin-top: 10px; padding-left: 18px; color: var(--dim); font-size: 12px;
+      }
+      .warnings:empty { display: none; }
+      kbd {
+        background: #232830; border: 1px solid var(--line); border-bottom-width: 2px;
+        border-radius: 5px; padding: 1px 6px; font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>engine-sound</h1>
+      <p class="sub">
+        Nothing here is a recording. Cylinder pressure, valve timing and exhaust
+        gas dynamics are simulated at 10 kHz on the audio thread. Drop in an
+        engine-sim <b>.mr</b> file or a JSON engine definition to hear a
+        different one — there are examples beside this page.
+      </p>
+
+      <div class="row">
+        <label for="preset">Engine</label>
+        <select id="preset" style="flex: 1"></select>
+        <button id="usePreset" hidden>Use a preset</button>
+        <button id="starter">Starter</button>
+        <button id="power" class="primary">Start audio</button>
+      </div>
+
+      <div class="row">
+        <label for="throttle">Throttle</label>
+        <input id="throttle" type="range" min="0" max="1" step="0.01" value="0" disabled />
+      </div>
+
+      <div class="row">
+        <label for="load">Load (N·m)</label>
+        <input id="load" type="range" min="0" max="200" step="1" value="0" disabled />
+      </div>
+
+      <div class="row">
+        <label for="volume">Volume</label>
+        <input id="volume" type="range" min="0" max="1" step="0.01" value="0.7" disabled />
+      </div>
+
+      <div class="row">
+        <label>Gear</label>
+        <div class="gears" id="gears"></div>
+      </div>
+
+      <div class="gauges">
+        <div class="gauge">
+          <div class="label">RPM</div>
+          <div class="value" id="rpm">—</div>
+        </div>
+        <div class="gauge">
+          <div class="label">MAP</div>
+          <div class="value" id="map">—</div>
+        </div>
+        <div class="gauge">
+          <div class="label">Speed</div>
+          <div class="value" id="speed">—</div>
+        </div>
+        <div class="gauge">
+          <div class="label">Cylinders</div>
+          <div class="value" id="cyl">—</div>
+        </div>
+      </div>
+
+      <div class="tach"><i id="tachbar"></i></div>
+
+      <p class="hint">
+        Pick a gear and hold <kbd>Space</kbd> for full throttle; <kbd>N</kbd> is
+        neutral, and the number keys change gear. The starter disengages by itself
+        once the engine catches, and gives up after a few seconds if it doesn't.
+        Enough load will stall the engine — back the load off before cranking, or
+        it just spins at starter speed like the real thing.
+      </p>
+      <section class="spec" id="spec" hidden>
+        <h2><span id="specName"></span><span class="from" id="specFrom"></span></h2>
+        <dl>
+          <div><dt>Cylinders</dt><dd id="specCyl">—</dd></div>
+          <div><dt>Displacement</dt><dd id="specDisp">—</dd></div>
+          <div><dt>Compression</dt><dd id="specCr">—</dd></div>
+          <div><dt>Rev limit</dt><dd id="specRedline">—</dd></div>
+          <div><dt>Banks</dt><dd id="specBanks">—</dd></div>
+          <div><dt>Exhausts</dt><dd id="specExhaust">—</dd></div>
+        </dl>
+      </section>
+
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".mr,.json,application/json,text/plain" />
+        Drop an engine-sim <b>.mr</b> file or an engine <b>.json</b> here, or click to choose one
+      </label>
+      <ul class="warnings" id="warnings"></ul>
+
+      <p class="error" id="error"></p>
+    </div>
+
+    <!-- Lets this page, and anything it imports, use the same bare
+         `engine-sound` specifier that real code uses, with no bundler. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "engine-sound": "../src/index.js",
+          "engine-sound/react": "../src/use-engine-sound.js"
+        }
+      }
+    </script>
+
+    <script type="module">
+      // Imported straight from source so the demo runs off any static server.
+      import { createEngineSound } from '../src/engine-sound.js';
+      import { PRESETS, PRESET_LABELS } from '../src/constants.js';
+
+      const $ = (id) => document.getElementById(id);
+      const presetEl = $('preset');
+      const powerEl = $('power');
+      const starterEl = $('starter');
+      const usePresetEl = $('usePreset');
+      const throttleEl = $('throttle');
+      const loadEl = $('load');
+      const volumeEl = $('volume');
+      const errorEl = $('error');
+      const specEl = $('spec');
+      const dropEl = $('drop');
+      const fileEl = $('file');
+      const gearsEl = $('gears');
+
+      for (const preset of PRESETS) {
+        const option = document.createElement('option');
+        option.value = preset;
+        option.textContent = PRESET_LABELS[preset];
+        presetEl.append(option);
+      }
+      presetEl.value = 'v8_crossplane';
+
+      let engine = null;
+      let pendingFile = null;
+      let gear = 0; // 0 is neutral
+      let fromFile = false;
+      const REDLINE = 9000;
+
+      // --- display --------------------------------------------------------
+
+      // Cranking is the one control whose effect can be invisible: if the
+      // engine cannot catch, rpm just sits at starter speed. Say so.
+      function setCranking(active) {
+        starterEl.textContent = active ? 'Cranking…' : 'Starter';
+        starterEl.classList.toggle('active', active);
+      }
+
+      // The gearbox comes from the engine, so the buttons are rebuilt whenever
+      // one is loaded — a Fiat 500 has four gears, a Ferrari six.
+      function buildGears(count) {
+        gearsEl.replaceChildren();
+        const make = (label, value) => {
+          const b = document.createElement('button');
+          b.textContent = label;
+          b.onclick = () => selectGear(value);
+          b.dataset.gear = value;
+          gearsEl.append(b);
+          return b;
+        };
+        make('N', 0);
+        for (let g = 1; g <= count; g++) make(String(g), g);
+        selectGear(0);
+      }
+
+      function selectGear(value) {
+        gear = value;
+        engine?.setGear(value);
+        for (const b of gearsEl.children) {
+          b.classList.toggle('on', Number(b.dataset.gear) === value);
+          b.disabled = !engine;
+        }
+      }
+
+      function showWarnings(list) {
+        const el = $('warnings');
+        el.replaceChildren();
+        for (const warning of list || []) {
+          const li = document.createElement('li');
+          li.textContent = warning;
+          el.append(li);
+        }
+      }
+
+      function formatDisplacement(m3) {
+        const cc = m3 * 1e6;
+        return cc >= 1000 ? `${(cc / 1000).toFixed(2)} L` : `${cc.toFixed(0)} cc`;
+      }
+
+      // A loaded file describes an engine the preset list cannot represent, so
+      // the picker is disabled and its slot given over to what was loaded.
+      function showSpec(detail) {
+        // A JSON engine arrives by the same route as a preset, so the demo has
+        // to remember that it came from a file; a .mr file says so itself.
+        const loaded = fromFile || detail.source === 'mr';
+
+        $('specName').textContent = detail.name || 'Imported engine';
+        $('specCyl').textContent = detail.cylinders;
+        $('specDisp').textContent = formatDisplacement(detail.displacement);
+        $('specCr').textContent =
+          detail.compressionRatio > 0 ? `${detail.compressionRatio.toFixed(1)}:1` : '—';
+        $('specRedline').textContent = `${Math.round(detail.revLimit / 0.104719755)} rpm`;
+        $('specBanks').textContent = detail.banks;
+        $('specExhaust').textContent = detail.channels;
+        $('specFrom').textContent = fromFile ? 'from file' : '';
+
+        buildGears(detail.gears);
+
+        specEl.hidden = !fromFile;
+        presetEl.disabled = fromFile;
+        usePresetEl.hidden = !fromFile;
+      }
+
+      function resetToPresetUi() {
+        fromFile = false;
+        specEl.hidden = true;
+        presetEl.disabled = false;
+        usePresetEl.hidden = true;
+        showWarnings([]);
+      }
+
+      // --- lifecycle ------------------------------------------------------
+
+      async function start() {
+        powerEl.disabled = true;
+        powerEl.textContent = 'Starting…';
+        errorEl.textContent = '';
+
+        try {
+          engine = await createEngineSound({
+            preset: presetEl.value,
+            audio: { volume: Number(volumeEl.value) },
+          });
+        } catch (error) {
+          errorEl.textContent = String(error);
+          powerEl.disabled = false;
+          powerEl.textContent = 'Start audio';
+          return;
+        }
+
+        engine.addEventListener('error', (e) => {
+          // A rejected file leaves the previous engine playing, which looks
+          // like nothing happened unless it is spelled out.
+          errorEl.textContent = pendingFile
+            ? `Could not read ${pendingFile}: ${e.detail} — still playing ${
+                $('specName').textContent || PRESET_LABELS[presetEl.value] || 'the current engine'
+              }.`
+            : e.detail;
+          pendingFile = null;
+          dropEl.classList.add('rejected');
+        });
+        engine.addEventListener('engine', (e) => {
+          pendingFile = null;
+          dropEl.classList.remove('rejected');
+          $('cyl').textContent = e.detail.cylinders;
+          showWarnings(e.detail.warnings);
+          showSpec(e.detail);
+        });
+        engine.addEventListener('telemetry', (e) => {
+          $('rpm').textContent = Math.round(e.detail.rpm);
+          $('map').textContent = `${(e.detail.manifoldPressure / 1000).toFixed(0)} kPa`;
+          $('tachbar').style.width = `${Math.min(100, (e.detail.rpm / REDLINE) * 100)}%`;
+          $('speed').textContent = `${Math.round(e.detail.speed * 3.6)} km/h`;
+          setCranking(e.detail.starterEngaged);
+        });
+
+        engine.setLoadTorque(Number(loadEl.value));
+        engine.setThrottle(Number(throttleEl.value));
+        engine.setStarter(true);
+
+        for (const el of [throttleEl, loadEl, volumeEl, starterEl]) el.disabled = false;
+        selectGear(0);
+        powerEl.disabled = false;
+        powerEl.textContent = 'Stop';
+        powerEl.onclick = stop;
+      }
+
+      function stop() {
+        engine?.dispose();
+        engine?.context.close();
+        engine = null;
+        for (const el of [throttleEl, loadEl, volumeEl, starterEl]) el.disabled = true;
+        $('rpm').textContent = '—';
+        $('map').textContent = '—';
+        $('cyl').textContent = '—';
+        $('speed').textContent = '—';
+        $('tachbar').style.width = '0';
+        selectGear(0);
+        setCranking(false);
+        resetToPresetUi();
+        powerEl.textContent = 'Start audio';
+        powerEl.onclick = start;
+      }
+
+      // --- controls -------------------------------------------------------
+
+      buildGears(0);
+      powerEl.onclick = start;
+
+      starterEl.disabled = true;
+      starterEl.onclick = () => {
+        engine?.setStarter(true);
+        setCranking(true);
+      };
+
+      usePresetEl.hidden = true;
+      usePresetEl.onclick = () => {
+        if (!engine) return;
+        resetToPresetUi();
+        engine.setEngine({ preset: presetEl.value || 'v8_crossplane' });
+        engine.setStarter(true);
+      };
+
+      presetEl.onchange = () => {
+        engine?.setEngine({ preset: presetEl.value });
+        engine?.setStarter(true);
+      };
+      throttleEl.oninput = () => engine?.setThrottle(Number(throttleEl.value));
+      loadEl.oninput = () => engine?.setLoadTorque(Number(loadEl.value));
+      volumeEl.oninput = () => engine?.setAudioParam('volume', Number(volumeEl.value));
+
+      // --- .mr upload -----------------------------------------------------
+
+      // Both kinds of file end up here; which one is decided by the contents,
+      // not the extension, so a file saved under the wrong name still works.
+      async function loadFile(file) {
+        errorEl.textContent = '';
+        showWarnings([]);
+        if (!engine) await start();
+        if (!engine) return;
+
+        pendingFile = file.name || 'the file';
+        const text = await file.text();
+
+        if (text.trimStart().startsWith('{')) {
+          try {
+            const definition = JSON.parse(text);
+            fromFile = true;
+            engine.setEngine(definition);
+          } catch (error) {
+            fromFile = false;
+            errorEl.textContent = `Could not read ${pendingFile}: ${error.message}`;
+            dropEl.classList.add('rejected');
+            pendingFile = null;
+            return;
+          }
+        } else {
+          fromFile = true;
+          await engine.loadMr(text);
+        }
+
+        engine.setStarter(true);
+      }
+
+      fileEl.onchange = () => {
+        if (fileEl.files[0]) loadFile(fileEl.files[0]);
+      };
+
+      for (const type of ['dragenter', 'dragover']) {
+        dropEl.addEventListener(type, (e) => {
+          e.preventDefault();
+          dropEl.classList.add('over');
+        });
+      }
+      for (const type of ['dragleave', 'drop']) {
+        dropEl.addEventListener(type, () => dropEl.classList.remove('over'));
+      }
+      dropEl.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer?.files?.[0];
+        if (file) loadFile(file);
+      });
+
+      // Space for wide open throttle.
+      let held = false;
+      addEventListener('keydown', (e) => {
+        if (!engine) return;
+
+        if (e.key === 'n' || e.key === 'N') {
+          selectGear(0);
+          return;
+        }
+        if (/^[1-9]$/.test(e.key)) {
+          const wanted = Number(e.key);
+          if (wanted <= gearsEl.children.length - 1) selectGear(wanted);
+          return;
+        }
+
+        if (e.code !== 'Space' || held) return;
+        e.preventDefault();
+        held = true;
+        throttleEl.value = '1';
+        engine.setThrottle(1);
+      });
+      addEventListener('keyup', (e) => {
+        if (e.code !== 'Space' || !engine) return;
+        held = false;
+        throttleEl.value = '0';
+        engine.setThrottle(0);
+      });
+    </script>
+  </body>
+</html>

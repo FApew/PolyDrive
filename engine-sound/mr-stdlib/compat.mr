@@ -1,0 +1,36 @@
+/*
+ * Compatibility shim — part of this port, not of the vendored engine-sim
+ * standard library.
+ *
+ * The library in `mr-stdlib/` is a copy of one particular engine-sim release.
+ * Files written against a later release use nodes that release does not have,
+ * and the most common is `run`: newer versions replaced the three separate
+ * `set_engine` / `set_vehicle` / `set_transmission` calls with a single entry
+ * point.
+ *
+ * Anything defined here is loaded after the vendored library, so a real
+ * definition always wins over the stand-in.
+ */
+
+module {
+    @name:      "Compatibility"
+    @author:    "engine-sound"
+}
+
+private import "engine_sim.mr"
+
+// Newer engine-sim entry point:
+//
+//     public node main {
+//         run(engine: my_engine(), vehicle: my_vehicle(), transmission: my_box())
+//     }
+//
+// Only the engine affects the sound; the vehicle and transmission are accepted
+// and ignored, exactly as `set_vehicle` and `set_transmission` are.
+public node run {
+    input engine;
+    input vehicle: 0;
+    input transmission: 0;
+
+    set_engine(engine)
+}

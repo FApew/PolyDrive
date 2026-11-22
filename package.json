@@ -25,6 +25,7 @@
     "@jaames/iro": "^5.5.2",
     "@soundtouchjs/audio-worklet": "^2.1.1",
     "alea": "^1.0.1",
+    "engine-sound": "file:engine-sound/js",
     "express": "^5.3.0",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",

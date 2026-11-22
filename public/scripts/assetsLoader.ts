@@ -1,5 +1,4 @@
-import * as THREE from "three"
-import type { AudioKey, CarModelName } from "../../shared/types";
+import type { CarModelName } from "../../shared/types";
 
 export const modelList: CarModelName[] = ["giulia", "f40"]
 
@@ -8,26 +7,12 @@ export const imgs: Record<CarModelName, string> = {
     "f40": "../assets/imgs/ferrari.svg"
 }
 
-const audioLoader = new THREE.AudioLoader()
+const [giuliaRes, f40Res] = [
+    await fetch("../assets/engines/giulia.mr"),
+    await fetch("../assets/engines/f40.mr")
+]
 
-const [idleBuffer, lowOffBuffer, lowOnBuffer, medOffBuffer, medOnBuffer, highOffBuffer, highOnBuffer, maxRpmBuffer] = await Promise.all([
-    audioLoader.loadAsync("../assets/sounds/idle.wav"),
-    audioLoader.loadAsync("../assets/sounds/low_off.wav"),
-    audioLoader.loadAsync("../assets/sounds/low_on.wav"),
-    audioLoader.loadAsync("../assets/sounds/med_off.wav"),
-    audioLoader.loadAsync("../assets/sounds/med_on.wav"),
-    audioLoader.loadAsync("../assets/sounds/high_off.wav"),
-    audioLoader.loadAsync("../assets/sounds/high_on.wav"),
-    audioLoader.loadAsync("../assets/sounds/maxRPM.wav"),
-])
-
-export const audios: Record<AudioKey, AudioBuffer> = {
-    "idle": idleBuffer,
-    "lowOff": lowOffBuffer,
-    "lowOn": lowOnBuffer,
-    "medOff": medOffBuffer,
-    "medOn": medOnBuffer,
-    "highOff": highOffBuffer,
-    "highOn": highOnBuffer,
-    "maxRPM": maxRpmBuffer
+export const soundMRFiles = {
+    giulia: await giuliaRes.text(),
+    f40: await f40Res.text()
 }
