@@ -89,6 +89,7 @@ export class EngineAudio {
         engine.setThrottle(0)
 
         const audio = new THREE.PositionalAudio(this.listener)
+        audio.setVolume(0)
 
         audio.setNodeSource(engine.node)
         audio.setRefDistance(2)
@@ -201,7 +202,7 @@ export class EngineAudio {
         const crowdGain = 1 / n
 
         this.audio?.setVolume(
-            THREE.MathUtils.clamp(master, 0, 1) * crowdGain
+           THREE.MathUtils.clamp(master, 0, 1) * crowdGain
         )
     }
 

@@ -60,7 +60,7 @@ export type SyncObj = {
 
 //SECTION - CarModel & Visuals & Audio
 
-export type CarModelName = "giulia" | "f40"
+export type CarModelName = "giulia" | "f40" | "targa4s"
 
 export type CarVisuals = {
     model: CarModelName,

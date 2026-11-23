@@ -1,6 +1,6 @@
 game:
-  default_fps: 240
-  physics_fps: 120
+  default_fps: 30
+  physics_fps: 15
 
   shadow_quality: 4096
 
@@ -53,6 +53,16 @@ car:
       backlights_pos: {x: 0.613, y: 0.341, z: -2.085}
 
       default_color: 0xff2800
+      elevation: 0
+
+    targa4s:   # 3.0L flat-six boxer,flat-six, ~7500 limiter
+      wheel_size: 1
+      wheel_pos: {x: -0.774, y: 0, z: 1.229}
+
+      headlights_pos: {x: 0.697, y: 0.419, z: 1.75}
+      backlights_pos: {x: 0.547, y: 0.432, z: -2.07}
+
+      default_color: 0xa2caff
       elevation: 0
 
   tuning:
@@ -212,7 +222,7 @@ settings:
     label: "Main Volume"
     range: {min: 0, max: 100}
     step: 1
-    default: 30
+    default: 2
 
 debug:
   show_cannon_debugger: false

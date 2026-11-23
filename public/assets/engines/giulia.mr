@@ -122,6 +122,7 @@ public node alfa_romeo_690t {
         starter_speed: 500 * units.rpm,
         redline: 7400 * units.rpm,
         throttle_gamma: 2.0,
+        simulation_frequency: 6000,
         fuel: fuel()
     )
 
@@ -179,7 +180,7 @@ public node alfa_romeo_690t {
         runner_flow_rate: k_carb(250.0),
         runner_length: 4.0 * units.inch,
         idle_flow_rate: k_carb(0.0),
-        idle_throttle_plate_position: 0.9945,
+        idle_throttle_plate_position: 0.9952,
         throttle_gamma: 1.0,
         velocity_decay: 0.5
     )

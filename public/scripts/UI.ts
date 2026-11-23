@@ -5,6 +5,7 @@ import { currentCarVisuals, changeColor, createLobby, leaveLobby, joinLobby, top
 
 import { config } from "../../shared/YAMLConfigs"
 import { imgs, modelList } from "./assetsLoader"
+import { volumes } from "./main"
 import type { CarModelName, Settings, SettingsIDs } from "../../shared/types"
 
 //note - HTML Elements
@@ -236,12 +237,12 @@ async function updateSideBar(): Promise<void> {
                     slider.min = cfg.range.min.toString()
                     slider.max = cfg.range.max.toString()
                     slider.step = cfg.step.toString()
-                    slider.value = cfg.default.toString()
+                    slider.value = volumes.main.toString()
 
                     slider.addEventListener("input", () => {
                         const val = parseFloat(slider.value)
                         if (key == "main_volume") {
-                            changeVolume("main", val / 75)
+                            volumes.main = val
                             sliderLabel.innerHTML = val.toString()
                         }
                     })
@@ -249,7 +250,7 @@ async function updateSideBar(): Promise<void> {
 
                     const sliderLabel = document.createElement("div")
                     sliderLabel.classList.add("sliderLabel")
-                    sliderLabel.innerHTML = cfg.default.toString()
+                    sliderLabel.innerHTML = volumes.main.toString()
 
                     sliderBox.appendChild(sliderLabel)
 

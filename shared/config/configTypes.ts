@@ -1,3 +1,4 @@
+import type { Car } from "../../private/ts/physics"
 import type { Range, CarModel, CarTune, TrackTune, Settings } from "../types"
 
 export type GameConfig = {
@@ -59,7 +60,7 @@ export type GameConfig = {
     car: {
         camera_follow_smoothness: number
 
-        models: {giulia: CarModel, f40: CarModel}
+        models: {giulia: CarModel, f40: CarModel, targa4s: CarModel}
 
         tuning: { f1: CarTune }
     }

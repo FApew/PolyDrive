@@ -172,7 +172,7 @@ public node f40_v8 {
         hf_gain: 0.01,
         noise: 1.0,
         jitter: 0.15,
-        simulation_frequency: 10000
+        simulation_frequency: 6000
     )
 
     wires wires()

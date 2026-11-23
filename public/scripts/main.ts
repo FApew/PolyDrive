@@ -16,7 +16,7 @@ let inLobby = false
 
 const cars: LobbyCarList = { own: undefined, others: [] }
 
-const model = modelList[Math.floor(Math.random() * modelList.length)]
+const model = modelList[2/*Math.floor(Math.random() * modelList.length)*/]
 export const currentCarVisuals: CarVisuals = {
     model: model!, 
     color: config.car.models[model!].default_color
@@ -31,8 +31,8 @@ const currentPlayer: LobbyPlayer = {
     lights: false
 }
 
-const volumes: Volumes = {
-    main: config.settings.main_volume.default / 75,
+export const volumes: Volumes = {
+    main: config.settings.main_volume.default,
     engine: 0
 }
 
@@ -138,9 +138,8 @@ function activateAudio(): void {
         audioReady = true
         if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
 
-        const carsToInitialize = [cars.own, ...cars.others]
-        carsToInitialize.forEach(car => car?.initEngineAudio(listener))
-        carsToInitialize.forEach(car => car?.startEngineAudio())
+        cars.own?.initEngineAudio(listener)
+        void cars.own?.startEngineAudio()
     }).catch((error: unknown) => {
         audioInitPromise = undefined
         console.error("Could not initialize audio:", error)
@@ -212,6 +211,7 @@ async function lobbyInit(): Promise<void> {
 
     //note - Car Init
     spawnCars([currentPlayer])
+    changeColor(config.car.models[model!].default_color)
 
     let lastThrottle = 0, lastSteer = 0, lastLights = false
     let pressed: Partial<Record<string, boolean>> = {}
@@ -248,9 +248,9 @@ async function lobbyInit(): Promise<void> {
             car.updateWheels(dt)
         })
 
-        cars.own!.updateEngine(dt, volumes.main)
+        cars.own!.updateEngine(dt, volumes.main / 75)
         cars.others.forEach((car) => {
-            car.updateEngine(dt, volumes.main * 0.2)
+            car.updateEngine(dt, volumes.main * 0.2 / 75)
         })
     
         controls.update()
@@ -339,7 +339,9 @@ function spawnCars(value: LobbyPlayer[] | LobbyPlayer): void {
     //fun - createCarInstance()
     function createCarInstance(player: LobbyPlayer, Xpos: number, idx?: number): void {
         const newCar = new carLobbyVisual(player.id!, player.carVisuals.model)
-        if (audioReady && audioListener) newCar.initEngineAudio(audioListener)
+        if (player.id == socket.id && audioReady && audioListener) {
+            newCar.initEngineAudio(audioListener)
+        }
         const z = (Math.random() - 0.5) * 0.2
         newCar.mesh.position.x = Xpos
         newCar.mesh.position.z = z
@@ -353,7 +355,7 @@ function spawnCars(value: LobbyPlayer[] | LobbyPlayer): void {
             else { cars.others.push(newCar) }
         }
 
-        newCar.startEngineAudio()
+        if (player.id == socket.id) void newCar.startEngineAudio()
 
         scene.add(newCar.mesh)
     }
@@ -452,10 +454,11 @@ export function changeUser(username: string): void {
 ///fun changeModel()
 export function changeModel(model: CarModelName): void {
     currentPlayer.carVisuals.model = model
-    currentPlayer.carVisuals.color = config.car.models[model].default_color
+    //currentPlayer.carVisuals.color = config.car.models[model].default_color
     updateInfos()
 
     if (!inLobby) spawnCars(currentPlayer)
+    changeColor(config.car.models[model].default_color)
 
     sendChanges("model")
 }
@@ -524,6 +527,8 @@ socket.on("incomingHotUpdate", (player: LobbyPlayer) => {
     car.throttle = player.throttle
     car.steer = player.steer
     car.lights = player.lights
+
+    car.updateLights()
 })
 
 //fun - updateUrl()

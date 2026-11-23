@@ -10,15 +10,17 @@ import { EngineAudio } from "./engineAudio"
 const modelsLoader = new GLTFLoader()
 
 // Car Models
-const [giuliaGLTF, f40GLTF, tireGLTF] = await Promise.all([
+const [giuliaGLTF, f40GLTF, targa4sGLTF, tireGLTF] = await Promise.all([
     modelsLoader.loadAsync("../assets/models/giulia.glb"),
     modelsLoader.loadAsync("../assets/models/f40.glb"),
+    modelsLoader.loadAsync("../assets/models/targa4s.glb"),
     modelsLoader.loadAsync("../assets/models/tire.glb")
 ])
 
 const models: Record<CarModelName | "tire", THREE.Group> = {
     giulia: giuliaGLTF.scene,
     f40: f40GLTF.scene,
+    targa4s: targa4sGLTF.scene,
     tire: tireGLTF.scene
 }
 
@@ -171,7 +173,7 @@ export class carLobbyVisual {
         this.mesh = carGroup
     }
 
-    // getDefaultColor()
+    //fun - getDefaultColor()
     getDefaultColor(): THREE.ColorRepresentation {
         let color = 0xffffff
 
@@ -192,7 +194,7 @@ export class carLobbyVisual {
         return color
     }
 
-    // setColor()
+    //fun - setColor()
     setColor(color: THREE.ColorRepresentation): void {
         this.chassis.traverse((child) => {
             if (child instanceof THREE.Mesh) {
@@ -209,7 +211,7 @@ export class carLobbyVisual {
         })
     }
 
-    // updateWheels()
+    //fun - updateWheels()
     updateWheels(dt: number): void {
         this.currentWheelsSpeed = THREE.MathUtils.lerp(
             this.currentWheelsSpeed,
@@ -232,7 +234,7 @@ export class carLobbyVisual {
         this.wheelMesh[3]!.rotateX(this.currentWheelsSpeed / 8000)
     }
 
-    // updateLights()
+    //fun - updateLights()
     updateLights(): void {
         this.chassis.traverse((child) => {
             if (child instanceof THREE.Mesh) {
@@ -259,33 +261,44 @@ export class carLobbyVisual {
         })
     }
 
-    // initEngineAudio()
+    //fun - initEngineAudio()
     initEngineAudio(listener: THREE.AudioListener): void {
         this.engineAudio?.dispose()
         this.engineAudio = new EngineAudio(listener, this.mesh, this.model)
     }
 
-    // startEngineAudio()
-    // MUST be called from a user interaction (e.g. button click)
+    //fun - startEngineAudio()
     async startEngineAudio(): Promise<void> {
         await this.engineAudio?.start()
-        this.engineAudio?.setGear(0)
+        //this.engineAudio?.setGear(0)
     }
 
     // updateEngine()
     updateEngine(dt: number, master: number): void {
-        if (!this.engineAudio) return
+        if (this.engineAudio) {
+            this.engineAudio.setThrottle(this.throttle)
+            this.currentRPM = this.engineAudio.rpm
+            this.engineAudio.update(master, dt / 1000)
+            return
+        }
 
-        this.engineAudio.setThrottle(this.throttle)
-        this.currentRPM = this.engineAudio.rpm
-        this.engineAudio.update(master, dt / 1000)
+        const idleRPM = 900
+        const revLimit = 7000
+        const targetRPM = this.throttle > 0 ? THREE.MathUtils.lerp(idleRPM, revLimit, 0.82) : idleRPM
+        const smoothing =  this.throttle > 0 ? 1 - Math.exp(-3 * dt / 1000) : 1 - Math.exp(-1.5 * dt / 1000)
+
+        this.currentRPM = THREE.MathUtils.lerp(
+            this.currentRPM,
+            targetRPM,
+            smoothing
+        )
     }
 
-    // triggerEngineShift()
-    triggerEngineShift(): void {
+    //xfun - triggerEngineShift()
+    /*triggerEngineShift(): void {
         this.engineAudio?.setTransmissionMode("automatic")
         //this.engineAudio?.shiftUp()
-    }
+    }*/
 
     // dispose()
     dispose(): void {
