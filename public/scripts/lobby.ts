@@ -8,6 +8,12 @@ import { CarLobby } from "./carLobbyVisuals"
 import { modelList } from "./assetsLoader"
 import { updateInfos } from "./UI"
 
+import { 
+    params, socket, updateUrl, keys,
+    scene, cameraMain,
+    audioMain
+} from "./main"
+
 import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName, Volumes, PlayerChangeType, DefaultChange } from "../../shared/types"
 
 //SECTION - Initialization
@@ -17,7 +23,7 @@ let inLobby = false
 
 const cars: LobbyCarList = { own: undefined, others: [] }
 
-const model = modelList[2/*Math.floor(Math.random() * modelList.length)*/]
+const model = modelList[Math.floor(Math.random() * modelList.length)]
 export const currentCarVisuals: CarVisuals = {
     model: model!, 
     color: config.car.models[model!].default_color
@@ -44,75 +50,16 @@ export const topRightInfo: TopRightInfo = {
     carVisuals: currentCarVisuals
 }
 
-const params = new URLSearchParams(window.location.search)
-
-const scene = new THREE.Scene()
-let audioListener: THREE.AudioListener | undefined
-let activeCamera: THREE.PerspectiveCamera | undefined
-let audioReady = false
-let audioInitPromise: Promise<void> | undefined
-let audioVisibilityChange = Promise.resolve()
-let controls: OrbitControls
-
-//NOTE - Socket Init
-import { io } from "socket.io-client"
-const socket = io()
-
-//socket_In - connect
-socket.on("connect", () => {
-    console.log("SocketID:", socket.id)
-    socket.emit("ping", Date.now())
-})
-
-//socket_In - pong
-socket.on("pong", (time: number) => {
-    console.log("Latency:", Date.now() - time, "ms")
-})
-
-//socket_In - Init
-socket.on("Init", async () => {
-    currentPlayer.id = socket.id
-
-    await lobbyInit()
-    updateInfos()
-
-    //URL code param
-    const code = params.get("code")
-    if (code) {
-        if (!isLobbyCode(code)) {
-            params.delete("code")
-            updateUrl()
-        } else {
-            if (!await joinLobby(code, false)) {
-                params.delete("code")
-                updateUrl()
-                alert("Code Invalid or Lobby Full")
-            }
-        }
-    }
-})
-
 //!SECTION
-
-//NOTE - KeyPress Listener
-const keys: Record<string, boolean> = {}
-
-window.addEventListener("keydown", e => {
-    keys[e.key.toLowerCase()] = true
-})
-
-window.addEventListener("keyup", e => {
-    keys[e.key.toLowerCase()] = false
-})
 
 //SECTION - Audio Handlers
 
 //fun - syncAudioVisibility()
 function syncAudioVisibility(): void {
-    const context = audioListener?.context
+    const context = audioMain.listener?.context
     if (!context) return
 
-    audioVisibilityChange = audioVisibilityChange.then(async () => {
+    audioMain.visibilityPromise = audioMain.visibilityPromise.then(async () => {
         if (context.state === "closed") return
 
         if (document.hidden && context.state === "running") {
@@ -127,27 +74,27 @@ function syncAudioVisibility(): void {
 
 //fun - activateAudio()
 function activateAudio(): void {
-    audioListener ??= new THREE.AudioListener()
+    audioMain.listener ??= new THREE.AudioListener()
 
-    const listener = audioListener
+    const listener = audioMain.listener
     const context = listener.context
     const resume = context.state === "running" ? Promise.resolve() : context.resume()
 
-    if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
+    if (cameraMain.object && listener.parent !== cameraMain.object) cameraMain.object.add(listener)
 
-    if (audioReady || audioInitPromise) {
+    if (audioMain.state || audioMain.initPromise) {
         void resume.catch(error => console.error("Could not resume audio:", error))
         return
     }
 
-    audioInitPromise = resume.then(() => {
-        audioReady = true
-        if (activeCamera && listener.parent !== activeCamera) activeCamera.add(listener)
+    audioMain.initPromise = resume.then(() => {
+        audioMain.state = true
+        if (cameraMain.object && listener.parent !== cameraMain.object) cameraMain.object.add(listener)
 
         cars.own?.initEngineAudio(listener)
         void cars.own?.startEngineAudio()
     }).catch((error: unknown) => {
-        audioInitPromise = undefined
+        audioMain.initPromise = undefined
         console.error("Could not initialize audio:", error)
     })
 }
@@ -162,7 +109,9 @@ window.addEventListener("keydown", activateAudio)
 //!SECTION
 
 //FUNCTION - lobbyInit()
-async function lobbyInit(): Promise<void> {
+export async function lobbyInit(): Promise<void> {
+    currentPlayer.id = socket.id
+
     //note - Scene Init
     scene.background = new THREE.Color(0x070707)
 
@@ -173,10 +122,10 @@ async function lobbyInit(): Promise<void> {
         0.1,
         10000
     )
-    activeCamera = camera
+    cameraMain.object = camera
     camera.position.set(-1.8, 1.67, 3.39)
 
-    if (audioListener) camera.add(audioListener)
+    if (audioMain.listener) camera.add(audioMain.listener)
 
     //note - Renderer Init
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -195,7 +144,7 @@ async function lobbyInit(): Promise<void> {
     document.body.appendChild(labelRenderer.domElement)
 
     //note - Controls Init
-    controls = new OrbitControls(camera, renderer.domElement)
+    const controls = new OrbitControls(camera, renderer.domElement)
     controls.enablePan = false
 
     controls.enableDamping = true
@@ -208,7 +157,10 @@ async function lobbyInit(): Promise<void> {
     controls.maxDistance = config.lobby.orbit_constraints.zoom.max
     
     controls.target.set(0, 0, 0)
-    controls.update()
+
+    cameraMain.controls = controls
+
+    cameraMain.controls.update()
 
     //note - Stats Init
     const stats = new Stats()
@@ -267,7 +219,7 @@ async function lobbyInit(): Promise<void> {
             car.updateEngine(dt, volumes.main * 0.2 / 75)
         })
     
-        controls.update()
+        cameraMain.controls!.update()
 
         renderer.render(scene, camera)
         labelRenderer.render(scene, camera)
@@ -346,16 +298,16 @@ function spawnCars(value: LobbyPlayer[] | LobbyPlayer): void {
             spawnSpotlight(Xpos, 0)
         })
 
-        controls.target.set((value.length - 1) * 3 / 2, 0, 0)    
-        controls.minDistance = config.lobby.orbit_constraints.zoom.min * Math.sqrt(value.length)
-        controls.maxDistance = controls.minDistance + (config.lobby.orbit_constraints.zoom.max - config.lobby.orbit_constraints.zoom.min) * Math.cbrt(value.length)
+        cameraMain.controls!.target.set((value.length - 1) * 3 / 2, 0, 0)    
+        cameraMain.controls!.minDistance = config.lobby.orbit_constraints.zoom.min * Math.sqrt(value.length)
+        cameraMain.controls!.maxDistance = cameraMain.controls!.minDistance + (config.lobby.orbit_constraints.zoom.max - config.lobby.orbit_constraints.zoom.min) * Math.cbrt(value.length)
     }
 
     //fun - createCarInstance()
     function createCarInstance(player: LobbyPlayer, Xpos: number, idx?: number): void {
         const newCar = new CarLobby(player.id!, player.carVisuals.model)
-        if (player.id == socket.id && audioReady && audioListener) {
-            newCar.initEngineAudio(audioListener)
+        if (player.id == socket.id && audioMain.state && audioMain.listener) {
+            newCar.initEngineAudio(audioMain.listener)
         }
         const z = (Math.random() - 0.5) * 0.2
         newCar.mesh.position.x = Xpos
@@ -412,12 +364,18 @@ export async function createLobby(): Promise<void> {
     joinLobby(res.code)
 }
 
-//fun - joinLobby()
-export async function joinLobby(code: string, codeCheck: boolean = true): Promise<boolean> {
-    //socket_IO - checkCode
+//fun isLobbyJoinable()
+export async function isLobbyJoinable(code: string, codeCheck: boolean = true): Promise<boolean> {
     if (!isLobbyCode(code)) return false
     if (!await socket.emitWithAck("checkCode", code) && codeCheck) return false
     if (!await socket.emitWithAck("checkLobbySize", code)) return false
+
+    return true
+}
+
+//fun - joinLobby()
+export async function joinLobby(code: string, codeCheck: boolean = true): Promise<boolean> {
+    if (!await isLobbyJoinable(code, codeCheck)) return false
 
     //socket_IO - joinLobby
     socket.emit("joinLobby", {code: code, user: currentPlayer.username, carVisuals: currentCarVisuals, lights: cars.own!.lights})
@@ -454,7 +412,7 @@ export function leaveLobby(): void {
 }
 
 //fun - isLobbyCode()
-function isLobbyCode(value: string): boolean {
+export function isLobbyCode(value: string): boolean {
     return /^[A-Z0-9]{5}$/.test(value)
 }
 
@@ -567,20 +525,6 @@ socket.on("incomingHotUpdate", (player: LobbyPlayer) => {
     car.updateLights()
 })
 
-//fun - updateUrl()
-function updateUrl(): void {
-    const url = new URL(window.location.href)
-    const code = params.get("code")
-
-    if (code) {
-        url.searchParams.set("code", code)
-    } else {
-        url.searchParams.delete("code")
-    }
-
-    window.history.replaceState({}, "", url)
-}
-
 //!SECTION
 
 //SECTION - StartingTimer`
@@ -600,6 +544,10 @@ socket.on("startTimerUpdate", (sec: number) => {
 //socket_In - abortStartTimer
 socket.on("abortStartTimer", () => {
     topText.classList.remove("selected")
+})
+
+socket.on("startTimerFinish", () => {
+    topText.innerHTML = "Buon Anno"
 })
 
 //!SECTION

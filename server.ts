@@ -6,7 +6,7 @@ import { Server } from "socket.io"
 
 import * as THREE from "three"
 
-import type { Lobby, LobbyPlayer, CarModelName, CarVisuals, DefaultChange } from "./shared/types"
+import type { Room, LobbyPlayer, CarModelName, CarVisuals, DefaultChange, RoomState } from "./shared/types"
 
 //SECTION - General Server Init
 const __filename = fileURLToPath(import.meta.url)
@@ -31,8 +31,8 @@ app.use(express.static(join(__dirname, "dist")))
 
 //!SECTION
 
-//SECTION - Lobby Engine
-const lobbyRecord: Record<string, Lobby> = {}
+//SECTION - Room Engine
+const roomRecord: Record<string, Room> = {}
 const playerRecord: Record<string, string> = {}
 
 //fun - generateCode()
@@ -44,24 +44,24 @@ function generateCode(length: number = config.game.codes_length): string {
         const random = new Uint32Array(length)
         crypto.getRandomValues(random)
         ret = Array.from(random, (n) => {return chars[n % chars.length]}).join("")
-    } while (Object.hasOwn(lobbyRecord, ret))
+    } while (Object.hasOwn(roomRecord, ret))
 
     return ret
 }
 
-//fun - createLobby()
-function createLobby(id: string, code: string): void {
-    const newLobby: Lobby = {
+//fun - createRoom()
+function createRoom(id: string, code: string): void {
+    const newRoom: Room = {
         code: code,
         leader: id,
         playerList: [],
         state: "lobby"
     }
-    lobbyRecord[code] = newLobby
+    roomRecord[code] = newRoom
 }
 
-//fun - joinLobby()
-function joinLobby(id: string, username: string, carVisuals: CarVisuals, lights: boolean, code: string): void {
+//fun - joinRoom()
+function joinRoom(id: string, username: string, carVisuals: CarVisuals, lights: boolean, code: string): void {
     const newPlayer: LobbyPlayer = {
         id: id,
         username: username,
@@ -72,16 +72,16 @@ function joinLobby(id: string, username: string, carVisuals: CarVisuals, lights:
         lights: lights
     }
 
-    lobbyRecord[code]!.playerList.push(newPlayer)
+    roomRecord[code]!.playerList.push(newPlayer)
     playerRecord[id] = code
 }
 
-//fun - leaveLobby()
-function leaveLobby(id: string): void {
+//fun - leaveRoom()
+function leaveRoom(id: string): void {
     const code = playerRecord[id]
-    if (code && lobbyRecord[code]) {
+    if (code && roomRecord[code]) {
 
-        const playerList = lobbyRecord[code].playerList
+        const playerList = roomRecord[code].playerList
 
         const idx = playerList.findIndex((player) => {return player.id == id})
         playerList.splice(idx, 1)
@@ -89,26 +89,26 @@ function leaveLobby(id: string): void {
 
         const playerIDsList = playerList.map((obj) => {return obj.id!})
         if (playerIDsList.length > 0) {
-            if (lobbyRecord[code].leader == id) { lobbyRecord[code].leader = playerIDsList[0]! }
+            if (roomRecord[code].leader == id) { roomRecord[code].leader = playerIDsList[0]! }
 
             io.to(playerIDsList).emit("lobbyRefresh", playerList)
         }
 
         console.log("User", id, "left", code)
         if (playerList.length == 0) {
-            destroyLobby(code)
+            destroyRoom(code)
         }
     }
 }
 
-//fun - destroyLobby()
-function destroyLobby(code: string): void {
-    delete lobbyRecord[code]
+//fun - destroyRoom()
+function destroyRoom(code: string): void {
+    delete roomRecord[code]
     console.log("Lobby", code, "destroyed")
 }
 
 //fun - checkReadyState()
-function checkReadyState(lobby: Lobby): void {
+function checkReadyState(lobby: Room): void {
     const idx = lobby.playerList.findIndex((obj) => {return obj.ready == false})
 
     if (idx == -1) {
@@ -123,7 +123,7 @@ function checkReadyState(lobby: Lobby): void {
 //SECTION - Game Phase Handlers
 
 //fun - initStartTimer()
-async function initStartTimer(lobby: Lobby): Promise<void> {
+async function initStartTimer(lobby: Room): Promise<void> {
     lobby.state = "starting";
     const playerIDsList = lobby.playerList.map((obj) => {return obj.id!})
 
@@ -133,17 +133,17 @@ async function initStartTimer(lobby: Lobby): Promise<void> {
     for (let i = config.game.starting_timer - 1; i >= 0; i--) {
         await new Promise((res) => {setTimeout(res, 1000)})
 
-        if ((lobby.state as Lobby["state"]) == "lobby") return
+        if ((lobby.state as Room["state"]) == "lobby") return
 
         //socket_Out - startTimerUpdate
         io.to(playerIDsList).emit("startTimerUpdate", i)
     }
 
-    console.log("VAII")
+    io.to(playerIDsList).emit("startTimerFinish")
 }
 
 //fun - abortStartTimer()
-function abortStartTimer(lobby: Lobby): void {
+function abortStartTimer(lobby: Room): void {
     lobby.state = "lobby";
     const playerIDsList = lobby.playerList.map((obj) => {return obj.id!})
 
@@ -172,7 +172,7 @@ io.on("connection", (socket) => {
     //socket_IO - createLobby
     socket.on("createLobby", (ack) => {
         const code = generateCode()
-        createLobby(socket.id, code)
+        createRoom(socket.id, code)
 
         console.log("Lobby", code, "created")
         ack({code: code})
@@ -180,12 +180,12 @@ io.on("connection", (socket) => {
 
     //socket_IO - joinLobby
     socket.on("joinLobby", ({code, user, carVisuals, lights}) => {
-        if (lobbyRecord[code] == undefined) createLobby(socket.id, code)
-        joinLobby(socket.id, user, carVisuals, lights, code)
+        if (roomRecord[code] == undefined) createRoom(socket.id, code)
+        joinRoom(socket.id, user, carVisuals, lights, code)
         
         console.log("User", socket.id, "joined", code)
 
-        const playerList = lobbyRecord[code]!.playerList
+        const playerList = roomRecord[code]!.playerList
 
         const playerIDsList = playerList.map((obj) => {return obj.id!})
         io.to(playerIDsList).emit("lobbyRefresh", playerList)
@@ -193,17 +193,30 @@ io.on("connection", (socket) => {
 
     //socket_IO - checkCode
     socket.on("checkCode", (code: string, ack) => {
-        const res = lobbyRecord[code] ? true : false
+        const res = roomRecord[code] ? true : false
         ack(res)
     })
 
     //socket_IO - checkLobbySize
     socket.on("checkLobbySize", (code: string, ack) => {
         let res = true
-        if (lobbyRecord[code]) {
-            res = lobbyRecord[code].playerList.length < config.game.lobby_max_size
+        if (roomRecord[code]) {
+            res = roomRecord[code].playerList.length < config.game.lobby_max_size
         }
         
+        ack(res)
+    })
+
+    //socket_IO - getRoomState
+    socket.on("getRoomState", (code: string, ack) => {
+        let res: RoomState
+
+        if (roomRecord[code]) {
+            res = roomRecord[code]!.state
+        } else {
+            res = "lobby"
+        }
+
         ack(res)
     })
 
@@ -211,9 +224,9 @@ io.on("connection", (socket) => {
     socket.on("requestDefaultChange", ({player, changeType}: DefaultChange) => {
         const code = playerRecord[socket.id]
         
-        if (code && lobbyRecord[code]) {
+        if (code && roomRecord[code]) {
 
-            const playerList = lobbyRecord[code].playerList
+            const playerList = roomRecord[code].playerList
             const idx = playerList.findIndex((player) => {return player.id == socket.id})
             const target = playerList[idx]
             
@@ -224,7 +237,7 @@ io.on("connection", (socket) => {
                 }
                 case "ready": {
                     target!.ready = player!.ready
-                    checkReadyState(lobbyRecord[code])
+                    checkReadyState(roomRecord[code])
                     break
                 }
                 case "color": {
@@ -251,9 +264,9 @@ io.on("connection", (socket) => {
     //socket_In - requestHotUpdate
     socket.on("requestHotUpdate", ({throttle, steer, lights}) => {
         const code = playerRecord[socket.id]
-        if (code && lobbyRecord[code]) {
+        if (code && roomRecord[code]) {
 
-            const playerList = lobbyRecord[code].playerList
+            const playerList = roomRecord[code].playerList
             const idx = playerList.findIndex((player) => {return player.id == socket.id})
             const target = playerList[idx]
 
@@ -270,7 +283,7 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         console.log("User Disconnected:", socket.id)
 
-        leaveLobby(socket.id)
+        leaveRoom(socket.id)
     })
 })
 //!SECTION

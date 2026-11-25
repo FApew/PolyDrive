@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
+import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { CarLobby } from "../public/scripts/carLobbyVisuals"
 
 export type Vec3 = {x: number, y: number, z: number}
@@ -60,6 +61,18 @@ export type SyncObj = {
 
 //SECTION - CarModel & Visuals & Audio
 
+export type CameraMain = {
+    object: THREE.PerspectiveCamera | undefined
+    controls: OrbitControls | undefined
+}
+
+export type AudioMain = {
+    listener: THREE.AudioListener | undefined,
+    state: boolean,
+    initPromise: Promise<void> | undefined,
+    visibilityPromise: Promise<void>
+}
+
 export type CarModelName = "giulia" | "f40" | "targa4s"
 
 export type CarVisuals = {
@@ -110,15 +123,15 @@ export type EngineTelemetry = {
 
 //!SECTION
 
-//SECTION - Players & Lobby
+//SECTION - Players & Rooms & Lobby
 
-export type LobbyStatus = "lobby" | "starting" | "running"
+export type RoomState = "lobby" | "starting" | "running"
 
-export type Lobby = {
+export type Room = {
     code: string,
     leader: string,
     playerList: LobbyPlayer[],
-    state: LobbyStatus
+    state: RoomState
 }
 
 export type LobbyPlayer = {
