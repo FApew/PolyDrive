@@ -1,5 +1,6 @@
 
 import * as THREE from "three"
+import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
 import type { Vec3, CarModelName } from "../../shared/types"
@@ -24,8 +25,8 @@ const models: Record<CarModelName | "tire", THREE.Group> = {
     tire: tireGLTF.scene
 }
 
-// CLASS - carLobbyVisual
-export class carLobbyVisual {
+// CLASS - CarLobby
+export class CarLobby {
     id: string
     model: CarModelName
 
@@ -36,6 +37,8 @@ export class carLobbyVisual {
 
     private headlights: THREE.SpotLight[] = []
     private backlights: THREE.SpotLight[] = []
+
+    usernameLabel: HTMLDivElement
 
     throttle: number = 0
     steer: number = 0
@@ -117,7 +120,7 @@ export class carLobbyVisual {
                 0xffffff,
                 70,
                 40,
-                Math.PI / 3,
+                Math.PI / 4,
                 0.5,
                 2
             )
@@ -162,6 +165,15 @@ export class carLobbyVisual {
 
             this.backlights.push(spotlight)
         }
+
+        //Username Label
+        this.usernameLabel = document.createElement("div")
+        this.usernameLabel.classList.add("usernameLabel")
+        this.usernameLabel.innerHTML = "._."
+        
+        const label = new CSS2DObject(this.usernameLabel)
+        label.position.set(0, 1.4, 0)
+        carGroup.add(label)
 
         carGroup.position.y = 0.33 * config.car.models[model].wheel_size
 
@@ -273,7 +285,7 @@ export class carLobbyVisual {
         //this.engineAudio?.setGear(0)
     }
 
-    // updateEngine()
+    //fun - updateEngine()
     updateEngine(dt: number, master: number): void {
         if (this.engineAudio) {
             this.engineAudio.setThrottle(this.throttle)
@@ -300,9 +312,10 @@ export class carLobbyVisual {
         //this.engineAudio?.shiftUp()
     }*/
 
-    // dispose()
+    //fun - dispose()
     dispose(): void {
         this.engineAudio?.dispose()
         this.engineAudio = null
+        this.usernameLabel.remove()
     }
 }

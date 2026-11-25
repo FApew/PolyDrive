@@ -6,7 +6,6 @@ import { soundMRFiles } from "./assetsLoader"
 
 //CLASS - EngineAudio
 export class EngineAudio {
-    private static active = new Set<EngineAudio>() //Live instances
 
     private listener: THREE.AudioListener
     private mesh: THREE.Group
@@ -98,8 +97,6 @@ export class EngineAudio {
 
         this.mesh.add(audio)
         this.audio = audio
-
-        EngineAudio.active.add(this)
     }
 
     //fun - start()
@@ -198,19 +195,14 @@ export class EngineAudio {
 
         //this.automaticShift(dt)
 
-        const n = Math.max(1, EngineAudio.active.size)
-        const crowdGain = 1 / n
-
         this.audio?.setVolume(
-           THREE.MathUtils.clamp(master, 0, 1) * crowdGain
+           THREE.MathUtils.clamp(master, 0, 1)
         )
     }
 
     //fun - dispose()
     dispose(): void {
         this.disposed = true
-
-        EngineAudio.active.delete(this)
 
         if (this.audio) {
             this.audio.removeFromParent()

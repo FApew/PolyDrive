@@ -51,6 +51,7 @@ body {
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
     border: 1px solid #ffffff20;
+    z-index: 2;
 
     transition: all .1s ease;
 
@@ -151,6 +152,7 @@ body {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     border: none;
+    z-index: 2;
 
     color: #ffffff37;
     font-size: 3vh;
@@ -172,6 +174,7 @@ body {
     -webkit-backdrop-filter: blur(5px);
     border: 1px solid #ffffff20;
     box-sizing: border-box;
+    z-index: 2;
 
     padding: 5px;
     box-sizing: border-box;
@@ -441,6 +444,48 @@ body {
     font-size: 3vh;
 }
 
+.usernameLabel {
+    color: #fff;
+    font-family: "Sans", sans-serif;
+    font-size: 3vh;
+    z-index: 1 !important;  
+}
+
+.usernameLabel.ready {
+    color: #72ff72;
+    text-shadow:
+        0 0 5px #39ff39,
+        0 0 12px #39ff39,
+        0 0 24px #39ff39;
+
+    animation: readyAnimation 2s ease-in-out infinite;
+}
+
+#topText {
+    position: absolute;
+    width: 36vw;
+    height: 12vh;
+
+    top: -12vh;
+    left: calc(50% - 18vw);
+
+    color: #ffffff50;
+    font-family: "Sans", sans-serif;
+    font-size: 4vw;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    z-index: 2;
+
+    transition: all 0.1s ease;
+}
+
+#topText.selected {
+    top: 0
+}
+
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -462,6 +507,21 @@ body {
 
 *::-webkit-scrollbar-button { 
     display: none;
+}
+
+@keyframes readyAnimation {
+    0%, 100% {
+        text-shadow:
+            0 0 5px #39ff39,
+            0 0 12px #39ff39;
+    }
+
+    50% {
+        text-shadow:
+            0 0 8px #39ff39,
+            0 0 22px #39ff39,
+            0 0 35px #39ff39;
+    }
 }
 
 @supports not selector(::-webkit-scrollbar) {

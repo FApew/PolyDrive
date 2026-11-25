@@ -1,11 +1,16 @@
 import * as THREE from "three"
 import iro from "@jaames/iro"
 
-import { currentCarVisuals, changeColor, createLobby, leaveLobby, joinLobby, topRightInfo, changeModel, changeVolume, changeUser } from "./main"
+import {
+    currentCarVisuals,
+    createLobby, joinLobby, leaveLobby,
+    topRightInfo,
+    changeUsername, changeReadyState, changeModel, changeColor
+} from "./lobby"
 
 import { config } from "../../shared/YAMLConfigs"
 import { imgs, modelList } from "./assetsLoader"
-import { volumes } from "./main"
+import { volumes } from "./lobby"
 import type { CarModelName, Settings, SettingsIDs } from "../../shared/types"
 
 //note - HTML Elements
@@ -21,6 +26,7 @@ const topRightInfoElement = document.getElementById("topRightInfo") as HTMLDivEl
 let sideBarVal = 0, lastSideBarVal = 0
 let firstCustomize = true
 let lastColor: THREE.ColorRepresentation //Cool Colors: #b03c40 #735bc2 #10713b #525aff
+let readyState = false
 
 //NOTE "JOIN & READY" Events
 join_ready.addEventListener("click", async (e) => {
@@ -30,9 +36,14 @@ join_ready.addEventListener("click", async (e) => {
         const code: string = codeInput.value.toUpperCase()
         if (code.length < 5) {alert("Enter a 5 digit code"); return}
 
-        if (!await joinLobby(code)) { alert("Code is invalid") }
+        if (!await joinLobby(code)) { alert("Code Invalid or Lobby Full") }
 
-    } else if (target.id == "ready") { console.log("brao") }
+    } else if (target.id == "ready") {
+        readyState = !readyState
+        changeReadyState(readyState)
+
+        target.innerHTML = readyState ? "UnReady" : "Ready"
+    }
 })
 
 //NOTE - "CREATE & LEAVE" Events
@@ -275,7 +286,7 @@ export function updateInfos(): void {
     
     const usernameInput = document.createElement("input")
     usernameInput.id = "usernameInput"
-    usernameInput.maxLength = config.game.username_lenght
+    usernameInput.maxLength = config.game.username_length
     usernameInput.placeholder = "<NAME>"
     usernameInput.value = topRightInfo.username
     resizeInput()
@@ -285,7 +296,7 @@ export function updateInfos(): void {
     usernameInput.addEventListener("input", () => {
         resizeInput()
 
-        changeUser(usernameInput.value)
+        changeUsername(usernameInput.value)
     })
 
     if (topRightInfo.code) {

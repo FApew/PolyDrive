@@ -5,7 +5,10 @@ game:
   shadow_quality: 4096
 
   codes_length: 5
-  username_lenght: 20
+  username_length: 20
+  lobby_max_size: 5
+
+  starting_timer: 3
 
 terrain:
   min_size: 900
@@ -59,7 +62,7 @@ car:
       wheel_size: 1
       wheel_pos: {x: -0.774, y: 0, z: 1.229}
 
-      headlights_pos: {x: 0.697, y: 0.419, z: 1.75}
+      headlights_pos: {x: 0.715, y: 0.458, z: 1.759}
       backlights_pos: {x: 0.547, y: 0.432, z: -2.07}
 
       default_color: 0xa2caff

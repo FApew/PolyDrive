@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
-import { carLobbyVisual } from "../public/scripts/carLobbyVisuals"
+import { CarLobby } from "../public/scripts/carLobbyVisuals"
 
 export type Vec3 = {x: number, y: number, z: number}
 export type Range = {min: number, max: number}
@@ -112,16 +112,19 @@ export type EngineTelemetry = {
 
 //SECTION - Players & Lobby
 
+export type LobbyStatus = "lobby" | "starting" | "running"
+
 export type Lobby = {
     code: string,
     leader: string,
     playerList: LobbyPlayer[],
-    state: "lobby" | "running"
+    state: LobbyStatus
 }
 
 export type LobbyPlayer = {
     id: string | undefined
     username: string
+    ready: boolean
     carVisuals: CarVisuals
     throttle: number
     steer: number
@@ -129,11 +132,11 @@ export type LobbyPlayer = {
 }
 
 export type LobbyCarList = {
-    own: carLobbyVisual | undefined,
-    others: carLobbyVisual[]
+    own: CarLobby | undefined,
+    others: CarLobby[]
 }
 
-export type PlayerChangeType = "color" | "model" | "username"
+export type PlayerChangeType = "color" | "model" | "username" | "ready"
 
 export type DefaultChange = {
     player: LobbyPlayer

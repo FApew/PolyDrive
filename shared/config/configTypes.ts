@@ -8,8 +8,11 @@ export type GameConfig = {
 
         shadow_quality: number
 
-        codes_lenght: number
-        username_lenght: number
+        codes_length: number
+        username_length: number
+        lobby_max_size: number
+
+        starting_timer: number
     }
 
     debug: {
