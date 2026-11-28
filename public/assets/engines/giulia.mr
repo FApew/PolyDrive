@@ -5,7 +5,7 @@ constants constants()
 impulse_response_library ir_lib()
 label cycle(2 * 360 * units.deg)
 
-// Alfa Romeo 690T approximation
+// Alfa Romeo 690T approximation (tuned: open exhaust, smoother idle, more power)
 
 private node wires {
     output wire1: ignition_wire();
@@ -19,12 +19,12 @@ private node wires {
 private node alfa_690t_head {
     input intake_camshaft;
     input exhaust_camshaft;
-    input chamber_volume: 58.1 * units.cc;
+    input chamber_volume: 55 * units.cc;                       // was 58.1 (CR ~9.8:1)
     input intake_runner_volume: 180 * units.cc;
     input intake_runner_cross_section_area: 1.55 * units.inch * 1.55 * units.inch;
     input exhaust_runner_volume: 55 * units.cc;
     input exhaust_runner_cross_section_area: 1.65 * units.inch * 1.65 * units.inch;
-    input flow_attenuation: 1.0;
+    input flow_attenuation: 1.0;                               // was 1.0 (better port flow)
     input lift_scale: 1.0;
     input flip_display: false;
     alias output __out: head;
@@ -118,12 +118,15 @@ public node alfa_romeo_690t {
 
     engine engine(
         name: "Alfa Romeo 690T 2.9 V6 Twin Turbo",
-        starter_torque: 70 * units.lb_ft,
+        starter_torque: 100 * units.lb_ft,
         starter_speed: 500 * units.rpm,
         redline: 7400 * units.rpm,
-        throttle_gamma: 2.0,
-        simulation_frequency: 6000,
-        fuel: fuel()
+        throttle_gamma: 1.0,                 // was 1.8 (more throttle at part-open)
+        hf_gain: 0.0015,                     // was 0.003 (less high-freq "crack")
+        noise: 0.12,                         // was 0.25
+        jitter: 0.05,                        // was 0.15 (smoother idle)
+        simulation_frequency: 10000,         // was 6000 (more accurate pulses/power)
+        fuel: fuel(max_burning_efficiency: 1.2)   // stands in for turbo boost
     )
 
     wires wires()
@@ -136,7 +139,7 @@ public node alfa_romeo_690t {
     label rod_mass(535 * units.g)
     label compression_height(1.0 * units.inch)
     label crank_mass(22.7 * units.kg)
-    label flywheel_mass(13.6 * units.kg)
+    label flywheel_mass(12.0 * units.kg)    // was 13.6
     label flywheel_radius(6.0 * units.inch)
 
     label crank_moment(disk_moment_of_inertia(mass: crank_mass, radius: stroke))
@@ -147,7 +150,7 @@ public node alfa_romeo_690t {
         throw: stroke / 2,
         flywheel_mass: flywheel_mass,
         mass: crank_mass,
-        friction_torque: 5.0 * units.lb_ft,
+        friction_torque: 4.0 * units.lb_ft,   // was 5.0
         moment_of_inertia: crank_moment + flywheel_moment + other_moment,
         position_x: 0.0,
         position_y: 0.0,
@@ -173,36 +176,40 @@ public node alfa_romeo_690t {
         length: rod_length
     )
 
+    // Much bigger plenum / flow = the main power gain (turbo-like air supply).
+    // If idle rpm now sits too high or low, tweak idle_throttle_plate_position only
+    // (closer to 1.0 = less idle air).
     intake intake(
-        plenum_volume: 1.325 * units.L,
-        plenum_cross_section_area: 20.0 * units.cm2,
-        intake_flow_rate: k_carb(400.0),
-        runner_flow_rate: k_carb(250.0),
-        runner_length: 4.0 * units.inch,
+        plenum_volume: 2.0 * units.L,                 // was 1.325
+        plenum_cross_section_area: 60.0 * units.cm2,  // was 20
+        intake_flow_rate: k_carb(600.0),              // was 400
+        runner_flow_rate: k_carb(330.0),              // was 250
+        runner_length: 6.0 * units.inch,              // was 4
         idle_flow_rate: k_carb(0.0),
-        idle_throttle_plate_position: 0.9952,
+        idle_throttle_plate_position: 0.9973,         // was 0.9952 (compensates bigger intake)
         throttle_gamma: 1.0,
         velocity_decay: 0.5
     )
 
+    // Open, free-flowing exhaust (less restriction, less muffling).
     exhaust_system_parameters es_params(
-        outlet_flow_rate: k_carb(1000.0),
-        primary_tube_length: 20.0 * units.inch,
-        primary_flow_rate: k_carb(600.0),
+        outlet_flow_rate: k_carb(1400.0),       // was 1000
+        primary_tube_length: 12.0 * units.inch, // was 20
+        primary_flow_rate: k_carb(700.0),       // was 600
         velocity_decay: 1.0
     )
 
     exhaust_system exhaust0(
         es_params,
-        length: 42 * units.inch,
-        audio_volume: 0.25,
-        impulse_response: ir_lib.mild_exhaust_0_reverb
+        length: 30 * units.inch,                // was 42 (shorter = less boomy/muffled)
+        audio_volume: 0.8,                      // was 0.25
+        impulse_response: ir_lib.default_0      // was mild_exhaust_0_reverb (muffled/reverby)
     )
     exhaust_system exhaust1(
         es_params,
-        length: 42 * units.inch,
-        audio_volume: 0.25,
-        impulse_response: ir_lib.mild_exhaust_0_reverb
+        length: 30 * units.inch,
+        audio_volume: 0.8,
+        impulse_response: ir_lib.default_0
     )
 
     cylinder_bank_parameters bank_params(
@@ -290,17 +297,17 @@ public node alfa_romeo_690t {
     engine.add_cylinder_bank(b0).add_cylinder_bank(b1)
     engine.add_crankshaft(c0)
 
-    // Conservative road-engine cam timing; exact 690T cam data is not public.
+    // Slightly more lift/duration for power; kept mild so idle stays smooth.
     harmonic_cam_lobe intake_lobe(
-        duration_at_50_thou: 222 * units.deg,
+        duration_at_50_thou: 232 * units.deg,   // was 222
         gamma: 1.0,
-        lift: 400 * units.thou,
+        lift: 440 * units.thou,                 // was 400
         steps: 100
     )
     harmonic_cam_lobe exhaust_lobe(
-        duration_at_50_thou: 226 * units.deg,
+        duration_at_50_thou: 232 * units.deg,   // was 226
         gamma: 1.0,
-        lift: 300 * units.thou,
+        lift: 400 * units.thou,                 // was 300
         steps: 100
     )
 
@@ -313,6 +320,7 @@ public node alfa_romeo_690t {
         base_radius: 0.75 * units.inch
     )
 
+    // Smoothed: the old curve dropped to 24 deg at 5000 rpm, costing power.
     function timing_curve(1000 * units.rpm)
     timing_curve
         .add_sample(0 * units.rpm, 16 * units.deg)
@@ -321,9 +329,9 @@ public node alfa_romeo_690t {
         .add_sample(1000 * units.rpm, 20 * units.deg)
         .add_sample(2000 * units.rpm, 25 * units.deg)
         .add_sample(3000 * units.rpm, 30 * units.deg)
-        .add_sample(4000 * units.rpm, 30 * units.deg)
-        .add_sample(5000 * units.rpm, 24 * units.deg)
-        .add_sample(6000 * units.rpm, 26 * units.deg)
+        .add_sample(4000 * units.rpm, 31 * units.deg)
+        .add_sample(5000 * units.rpm, 30 * units.deg)
+        .add_sample(6000 * units.rpm, 29 * units.deg)
         .add_sample(7000 * units.rpm, 28 * units.deg)
         .add_sample(7400 * units.rpm, 28 * units.deg)
 

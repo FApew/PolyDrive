@@ -2,6 +2,8 @@ game:
   default_fps: 30
   physics_fps: 15
 
+  modules_number: 2
+
   shadow_quality: 4096
 
   codes_length: 5
@@ -11,8 +13,7 @@ game:
   starting_timer: 3
 
 terrain:
-  min_size: 900
-  max_size: 1300
+  size: {min: 900, max: 1300}
   mesh_main_density: 0.15
 
   main_frequency: 0.05
@@ -83,12 +84,10 @@ track:
   centerline_samples: 1000
 
   turn_size: 8
-  inner_turn_max_distance: 8
-  inner_turn_min_distance: 3
+  inner_turn_distance: {min: 3, max: 8}
   turn_smoothness: 18
 
-  min_segments: 8
-  max_segments: 20
+  segments: {min: 8, max: 20}
   max_segment_variation: 0.004
   segment_border: 0.01
 
@@ -111,11 +110,9 @@ track:
     middle_cross_chance: 0.4
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 20
-    max_anchor_distance: 400
+    anchor_distance: {min: 20, max: 400}
 
-    min_curve_angle: 50
-    max_curve_angle: 160
+    curve_angle: {min: 50, max: 160}
 
   f1: 
     segment_weight: 3
@@ -128,11 +125,9 @@ track:
     middle_cross_chance: 0
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 20
-    max_anchor_distance: 400
+    anchor_distance: {min: 20, max: 400}
 
-    min_curve_angle: 65
-    max_curve_angle: 160
+    curve_angle: {min: 65, max: 160}
 
   rally: 
     segment_weight: 1
@@ -145,11 +140,9 @@ track:
     middle_cross_chance: .1
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 20
-    max_anchor_distance: 400
+    anchor_distance: {min: 20, max: 400}
 
-    min_curve_angle: 40
-    max_curve_angle: 100
+    curve_angle: {min: 40, max: 100}
 
   touring: 
     segment_weight: 2
@@ -162,11 +155,9 @@ track:
     middle_cross_chance: 0
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 20
-    max_anchor_distance: 400
+    anchor_distance: {min: 20, max: 400}
 
-    min_curve_angle: 65
-    max_curve_angle: 160
+    curve_angle: {min: 65, max: 160}
 
   hillclimb: 
     segment_weight: 2
@@ -179,11 +170,9 @@ track:
     middle_cross_chance: 0
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 100
-    max_anchor_distance: 400
+    anchor_distance: {min: 100, max: 400}
 
-    min_curve_angle: 25
-    max_curve_angle: 90
+    curve_angle: {min: 25, max: 90}
 
   drift: 
     segment_weight: 2
@@ -196,11 +185,9 @@ track:
     middle_cross_chance: 0.3
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 20
-    max_anchor_distance: 200
+    anchor_distance: {min: 20, max: 200}
 
-    min_curve_angle: 70
-    max_curve_angle: 160
+    curve_angle: {min: 70, max: 160}
 
   karting: 
     segment_weight: 1
@@ -213,11 +200,9 @@ track:
     middle_cross_chance: 0.1
     middle_cross_distance: 0.2
 
-    min_anchor_distance: 20
-    max_anchor_distance: 200
+    anchor_distance: {min: 20, max: 200}
 
-    min_curve_angle: 50
-    max_curve_angle: 100
+    curve_angle: {min: 50, max: 100}
 
 settings:
   main_volume: 
@@ -225,7 +210,7 @@ settings:
     label: "Main Volume"
     range: {min: 0, max: 100}
     step: 1
-    default: 2
+    default: 20
 
 debug:
   show_cannon_debugger: false

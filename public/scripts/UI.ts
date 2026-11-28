@@ -10,8 +10,8 @@ import {
 
 import { config } from "../../shared/YAMLConfigs"
 import { imgs, modelList } from "./assetsLoader"
-import { volumes } from "./lobby"
-import type { CarModelName, Settings, SettingsIDs } from "../../shared/types"
+import { volumes } from "./runtime"
+import type { CarModelName, SettingsIDs } from "../../shared/types"
 
 //note - HTML Elements
 const join_ready = document.getElementById("join") as HTMLDivElement
@@ -71,7 +71,7 @@ settings.addEventListener("click", () => {
     updateSideBar()
 })
 
-//FUNCTION - async updateSideBar()
+//FUNCTION - updateSideBar()
 async function updateSideBar(): Promise<void> {
     if (sideBarVal == 0) { //SideBar closed
         await closeSideBar()
@@ -324,4 +324,15 @@ export function updateInfos(): void {
         usernameInput.style.width = `${charN}ch`
         topRightInfo.username = usernameInput.value
     }
+}
+
+//fun - toggleLobbyUI
+export function toggleLobbyUI(t: boolean): void {
+    document.getElementById("lobbyUI")!.classList.toggle("hidden", !t)
+}
+
+//fun - closeSideBar()
+export function closeSideBar(): void {
+    sideBarVal = 0
+    updateSideBar()
 }

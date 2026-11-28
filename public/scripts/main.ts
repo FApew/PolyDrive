@@ -1,47 +1,20 @@
 import * as THREE from "three"
-import type { AudioMain, CameraMain, RoomState } from "../../shared/types";
+import type { RoomState, WorldManifest } from "../../shared/types";
 
-import {
-    lobbyInit, isLobbyCode, isLobbyJoinable, joinLobby
-} from "./lobby"
+import { params, socket, updateUrl, scene } from "./runtime"
 
-import { updateInfos } from "./UI"
+import { config } from "../../shared/YAMLConfigs"
+import { updateInfos, closeSideBar } from "./UI"
+import {lobbyInit, isLobbyCode, isLobbyJoinable, joinLobby, clearLobby} from "./lobby"
+import { gameSceneInit } from "./game";
+
+import { changeReadyState } from "./lobby"
 
 //SECTION - Initialization
+socket.emit("ping", Date.now())
 
 //NOTE - Global Vars
 let state: RoomState = "lobby"
-
-export const params = new URLSearchParams(window.location.search)
-
-export const scene = new THREE.Scene()
-
-export const audioMain: AudioMain = {
-    listener: undefined,
-    state: false,
-    initPromise: undefined,
-    visibilityPromise: Promise.resolve()
-}
-
-export const cameraMain: CameraMain = {
-    object: undefined,
-    controls: undefined
-}
-
-//NOTE - Socket Init
-import { io } from "socket.io-client"
-export const socket = io()
-
-//socket_In - connect
-socket.on("connect", () => {
-    console.log("SocketID:", socket.id)
-    socket.emit("ping", Date.now())
-})
-
-//socket_In - pong
-socket.on("pong", (time: number) => {
-    console.log("Latency:", Date.now() - time, "ms")
-})
 
 //socket_In - Init
 socket.on("Init", async () => {
@@ -49,12 +22,14 @@ socket.on("Init", async () => {
 
     if (code) {
         if (!isLobbyCode(code)) {
-            inLobby()
+            await inLobby()
             invalidRoom()
+            loadingScreen.classList.remove("selected")
         } else {
             if (!await isLobbyJoinable(code, false)) {
-                inLobby()
+                await inLobby()
                 invalidRoom()
+                loadingScreen.classList.remove("selected")
             }
 
             state = await getRoomState(code)
@@ -63,14 +38,24 @@ socket.on("Init", async () => {
                 case "lobby": {
                     await inLobby()
                     await joinLobby(code, false)
+                    loadingScreen.classList.remove("selected")
 
                     break
+                }
+
+                default: {
+                    await inLobby()
+                    invalidRoom()
+                    loadingScreen.classList.remove("selected")
                 }
             }
         }
     } else {
-        inLobby()
+        await inLobby()
+        loadingScreen.classList.remove("selected")
     }
+
+    //changeReadyState(true)
 
     async function inLobby(): Promise<void> {
         await lobbyInit()
@@ -84,20 +69,46 @@ socket.on("Init", async () => {
     }
 })
 
-//NOTE - KeyPress Listener
-export const keys: Record<string, boolean> = {}
-
-window.addEventListener("keydown", e => {
-    keys[e.key.toLowerCase()] = true
-})
-
-window.addEventListener("keyup", e => {
-    keys[e.key.toLowerCase()] = false
-})
-
 //!SECTION
 
 //SECTION - Room Handler
+const $ = (id: string): HTMLElement => {return document.getElementById(id)!}
+const topText = $("topText") as HTMLDivElement
+const loadingScreen = $("loadingScreen") as HTMLDivElement
+
+//socket_In - initStartTimer
+socket.on("initStartTimer", () => {
+    topText.classList.add("selected")
+    topText.innerHTML = `Starting in ${config.game.starting_timer}s`
+})
+
+//socket_In - startTimerUpdate
+socket.on("startTimerUpdate", (sec: number) => {
+    topText.innerHTML = `Starting in ${sec}s`
+})
+
+//socket_In - abortStartTimer
+socket.on("abortStartTimer", () => {
+    topText.classList.remove("selected")
+})
+
+//socket_In - startTimerFinish
+socket.on("startTimerFinish", () => {
+    topText.classList.remove("selected")
+    loadingScreen.classList.add("selected")
+    closeSideBar()
+})
+
+//socket_In - gameRoomLoadingDone
+socket.on("gameRoomLoadingDone", (manifest: WorldManifest) => {
+    clearLobby()
+    gameSceneInit()
+    
+    console.log(manifest)
+    debugShowCenterline(manifest.track.poses, scene)
+
+    loadingScreen.classList.remove("selected")
+})
 
 //fun - getRoomState()
 async function getRoomState(code: string): Promise<RoomState> {
@@ -107,16 +118,18 @@ async function getRoomState(code: string): Promise<RoomState> {
 
 //!SECTION
 
-//fun - updateUrl()
-export function updateUrl(): void {
-    const url = new URL(window.location.href)
-    const code = params.get("code")
+//SECTION - DebugFun
 
-    if (code) {
-        url.searchParams.set("code", code)
-    } else {
-        url.searchParams.delete("code")
-    }
+//debugFun - debugShowCenterline()
+function debugShowCenterline(poses: THREE.Vector3[], scene: THREE.Scene): void {
 
-    window.history.replaceState({}, "", url)
+    const geometry = new THREE.BufferGeometry().setFromPoints(poses)
+    const material = new THREE.LineBasicMaterial({ color: 0xffffff })
+
+    const line = new THREE.Line(geometry, material)
+    line.name = "Centerline"
+
+    scene.add(line)
 }
+
+//!SECTION

@@ -3,23 +3,29 @@ import RAPIER from "@dimforge/rapier3d-compat"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { CarLobby } from "../public/scripts/carLobbyVisuals"
 
-export type Vec3 = {x: number, y: number, z: number}
 export type Range = {min: number, max: number}
 
 //SECTION - TrackGeneration
 
 export type Point = {pose: THREE.Vector3, mode: Mode}
+export type PolarPoint = {r: number, theta: number, idx: number, mode: Mode}
 export type Segment = {weight: number, mode: Mode}
 
 export type Mode = "casual" | "rally" | "f1" | "touring" | "hillclimb" | "drift" | "karting"
 export type ModeNodes = {points: number[], turns: number[], modes: Mode[]}
+
+export type Centerline = {
+    points: Point[],
+    poses: THREE.Vector3[],
+    modeNodes: ModeNodes
+}
 
 export type Pivot = {pivot: THREE.Vector3, idx: number, lr: "left" | "right"}
 
 export type NearTurn = {
     l: THREE.Vector3[][],
     r: THREE.Vector3[][],
-    pivots: Pivot[]
+    pivots: Pivot[],
     idx: number,
     inTurn: boolean
 }
@@ -36,25 +42,51 @@ export type TrackContext = {
 }
 
 export type TrackTune = {
-    segment_weight: number
-    track_width: number
-    max_anchor_per_segment: number
-    multiple_anchors_chance: number
-    middle_cross_chance: number
-    middle_cross_distance: number
-    min_anchor_distance: number
-    max_anchor_distance: number
-    min_curve_angle: number
-    max_curve_angle: number
+    segment_weight: number,
+    track_width: number,
+    max_anchor_per_segment: number,
+    multiple_anchors_chance: number,
+    middle_cross_chance: number,
+    middle_cross_distance: number,
+    anchor_distance: Range,
+    curve_angle: Range
 }
 
 //!SECTION
 
-//SECTION - Physiscs
+//SECTION - Physiscs & World Generation
 
 export type SyncObj = {
     obj: THREE.Object3D,
     body: RAPIER.RigidBody
+}
+
+export type TerrainData = undefined/*{
+    heightmap: Float32Array
+}*/
+
+export type TrackData = {
+    poses: THREE.Vector3[]
+    modeNodes: ModeNodes
+}
+
+export type WorldObjectModelName = "rock"
+
+export type WorldObject = {
+    id: number,
+    model: WorldObjectModelName,
+    position: THREE.Vector3,
+    rotation: THREE.Quaternion,
+    scale: THREE.Vector3
+}
+
+export type WorldManifest = {
+    id: string,
+    seed: number,
+
+    terrain: TerrainData,
+    track: TrackData,
+    objects: WorldObject[]
 }
 
 //!SECTION
@@ -62,13 +94,14 @@ export type SyncObj = {
 //SECTION - CarModel & Visuals & Audio
 
 export type CameraMain = {
-    object: THREE.PerspectiveCamera | undefined
+    object: THREE.PerspectiveCamera | undefined,
     controls: OrbitControls | undefined
 }
 
 export type AudioMain = {
     listener: THREE.AudioListener | undefined,
     state: boolean,
+    volumes: Volumes,
     initPromise: Promise<void> | undefined,
     visibilityPromise: Promise<void>
 }
@@ -81,13 +114,13 @@ export type CarVisuals = {
 }
 
 export type CarModel = {
-    wheel_size: number
-    wheel_pos: Vec3
+    wheel_size: number,
+    wheel_pos: THREE.Vector3,
 
-    headlights_pos: Vec3
-    backlights_pos: Vec3
+    headlights_pos: THREE.Vector3,
+    backlights_pos: THREE.Vector3,
     
-    default_color: THREE.ColorRepresentation
+    default_color: THREE.ColorRepresentation,
 
     elevation: number
 }
@@ -105,19 +138,19 @@ export type CarTune = {
 export type TransmissionMode = "manual" | "automatic"
 
 export type EngineAudioOptions = {
-    transmission?: TransmissionMode
-    maxGears?: number
-    upshiftRPM?: number
-    downshiftRPM?: number
+    transmission?: TransmissionMode,
+    maxGears?: number,
+    upshiftRPM?: number,
+    downshiftRPM?: number,
     wheelRadius?: number
 }
 
 export type EngineTelemetry = {
-    rpm: number
-    manifoldPressure: number
-    levelerGain: number
-    starterEngaged: boolean
-    gear: number
+    rpm: number,
+    manifoldPressure: number,
+    levelerGain: number,
+    starterEngaged: boolean,
+    gear: number,
     speed: number
 }
 
@@ -131,16 +164,17 @@ export type Room = {
     code: string,
     leader: string,
     playerList: LobbyPlayer[],
-    state: RoomState
+    state: RoomState,
+    manifest: WorldManifest | null
 }
 
 export type LobbyPlayer = {
-    id: string | undefined
-    username: string
-    ready: boolean
-    carVisuals: CarVisuals
-    throttle: number
-    steer: number
+    id: string | undefined,
+    username: string,
+    ready: boolean,
+    carVisuals: CarVisuals,
+    throttle: number,
+    steer: number,
     lights: boolean
 }
 
@@ -152,7 +186,7 @@ export type LobbyCarList = {
 export type PlayerChangeType = "color" | "model" | "username" | "ready"
 
 export type DefaultChange = {
-    player: LobbyPlayer
+    player: LobbyPlayer,
     changeType: PlayerChangeType
 }
 
@@ -167,10 +201,10 @@ export type TopRightInfo = {
 }
 
 export type SettingSlider = {
-    type: "slider"
-    label: string
-    range: Range
-    step: number
+    type: "slider",
+    label: string,
+    range: Range,
+    step: number,
     default: number
 }
 

@@ -3,7 +3,7 @@ import * as THREE from "three"
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js"
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js"
 
-import type { Vec3, CarModelName } from "../../shared/types"
+import type { CarModelName } from "../../shared/types"
 import { config } from "../../shared/YAMLConfigs"
 import { EngineAudio } from "./engineAudio"
 
@@ -12,10 +12,10 @@ const modelsLoader = new GLTFLoader()
 
 // Car Models
 const [giuliaGLTF, f40GLTF, targa4sGLTF, tireGLTF] = await Promise.all([
-    modelsLoader.loadAsync("../assets/models/giulia.glb"),
-    modelsLoader.loadAsync("../assets/models/f40.glb"),
-    modelsLoader.loadAsync("../assets/models/targa4s.glb"),
-    modelsLoader.loadAsync("../assets/models/tire.glb")
+    modelsLoader.loadAsync("/models/giulia.glb"),
+    modelsLoader.loadAsync("/models/f40.glb"),
+    modelsLoader.loadAsync("/models/targa4s.glb"),
+    modelsLoader.loadAsync("/models/tire.glb")
 ])
 
 const models: Record<CarModelName | "tire", THREE.Group> = {
@@ -98,7 +98,7 @@ export class CarLobby {
         for (const i of [1, -1]) {
             for (const j of [1, -1]) {
                 const wheel = models["tire"]!.clone(true)
-                const wheelPos: Vec3 = config.car.models[model].wheel_pos
+                const wheelPos: THREE.Vector3 = config.car.models[model].wheel_pos
 
                 wheel.position.set(
                     wheelPos.x * j,

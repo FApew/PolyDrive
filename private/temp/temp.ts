@@ -6,7 +6,7 @@ import {
     updatePhysics,
     clearSyncList,
     Car
-} from "./physics"
+} from "./tempPhysics"
 
 import { io } from "socket.io-client"
 const socket = io()
@@ -17,7 +17,7 @@ import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
 import type { TrackContext } from "../../shared/types"
-import { genTerrain } from "./terrainGenerator"
+import { genTerrain } from "./tempTerrainGenerator"
 
 import { config } from "../../shared/YAMLConfigs"
 

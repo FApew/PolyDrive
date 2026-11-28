@@ -1,11 +1,11 @@
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
-import { createStaticTrimesh } from "./physics"
+import { createStaticTrimesh } from "./tempPhysics"
 import { createNoise2D } from "simplex-noise"
 import alea from "alea"
 
-import { genTrackLine } from "./trackGenerator"
-import { genRoad } from "./roadGenerator"
+import { genTrackLine } from "./tempTrackGenerator"
+import { genRoad } from "./tempRoadGenerator"
 import type { Mode, ModeNodes, Pivot, NearTurn, SideLines, TrackContext } from "../../shared/types"
 
 import { config } from "../../shared/YAMLConfigs"
@@ -17,7 +17,7 @@ export function genTerrain(seed: number, scene: THREE.Scene, world: RAPIER.World
     const random = alea(seed) //Define Random Seeded Function
 
     //note - Plane Dimension Calc
-    const planeDim = Math.round(random() * (config.terrain.max_size - config.terrain.min_size) + config.terrain.min_size)
+    const planeDim = Math.round(random() * (config.terrain.size.max - config.terrain.size.min) + config.terrain.size.min)
 
     //Noise Functions
     const maskRandom = alea(seed + 1)
@@ -285,7 +285,7 @@ function getSideLines(
         const turnDistance = helperTurnDistance(pose, turns)
         if (turnDistance < config.track.turn_size) {
 
-            if (turnDistance > config.track.inner_turn_min_distance && turnDistance < config.track.inner_turn_max_distance) {
+            if (turnDistance > config.track.inner_turn_distance.min && turnDistance < config.track.inner_turn_distance.max) {
                 nearTurns.inTurn = true
                 nearTurns.l[nearTurns.idx]!.push(leftPoints[idx]!)
                 nearTurns.r[nearTurns.idx]!.push(rightPoints[idx]!)
@@ -668,7 +668,7 @@ function getSideLines(
             if (distance < config.track.turn_size) {
                 m = new THREE.LineBasicMaterial({ color: 0xff00ff })
 
-                if (distance > config.track.inner_turn_min_distance && distance < config.track.inner_turn_max_distance) {
+                if (distance > config.track.inner_turn_distance.min && distance < config.track.inner_turn_distance.max) {
                     m = new THREE.LineBasicMaterial({ color: 0x00ffff })
                 }
 

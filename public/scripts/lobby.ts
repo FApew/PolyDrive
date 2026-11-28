@@ -6,13 +6,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { config } from "../../shared/YAMLConfigs"
 import { CarLobby } from "./carLobbyVisuals"
 import { modelList } from "./assetsLoader"
-import { updateInfos } from "./UI"
+import { updateInfos, toggleLobbyUI } from "./UI"
 
-import { 
-    params, socket, updateUrl, keys,
-    scene, cameraMain,
-    audioMain
-} from "./main"
+import { params, socket, scene, cameraMain, audioMain, updateUrl, keys } from "./runtime"
 
 import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName, Volumes, PlayerChangeType, DefaultChange } from "../../shared/types"
 
@@ -21,9 +17,15 @@ import type { CarVisuals, LobbyPlayer, TopRightInfo, LobbyCarList, CarModelName,
 //NOTE - Global Vars
 let inLobby = false
 
+let animationFrameId: number | null = null
+let lobbyRenderer: THREE.WebGLRenderer | undefined
+let lobbyLabelRenderer: CSS2DRenderer | undefined
+let lobbyStats: Stats | undefined
+let lobbyResizeHandler: (() => void) | undefined
+
 const cars: LobbyCarList = { own: undefined, others: [] }
 
-const model = modelList[Math.floor(Math.random() * modelList.length)]
+const model = modelList[0/*Math.floor(Math.random() * modelList.length)*/]
 export const currentCarVisuals: CarVisuals = {
     model: model!, 
     color: config.car.models[model!].default_color
@@ -37,11 +39,6 @@ const currentPlayer: LobbyPlayer = {
     throttle: 0,
     steer: 0,
     lights: false
-}
-
-export const volumes: Volumes = {
-    main: config.settings.main_volume.default,
-    engine: 0
 }
 
 export const topRightInfo: TopRightInfo = {
@@ -128,23 +125,23 @@ export async function lobbyInit(): Promise<void> {
     if (audioMain.listener) camera.add(audioMain.listener)
 
     //note - Renderer Init
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
-    renderer.setSize(window.innerWidth, window.innerHeight)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFShadowMap
-    document.body.appendChild(renderer.domElement)
+    lobbyRenderer = new THREE.WebGLRenderer({ antialias: true })
+    lobbyRenderer.setSize(window.innerWidth, window.innerHeight)
+    lobbyRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    lobbyRenderer.shadowMap.enabled = true
+    lobbyRenderer.shadowMap.type = THREE.PCFShadowMap
+    document.body.appendChild(lobbyRenderer.domElement)
 
     //note - 2D Renderer Init
-    const labelRenderer = new CSS2DRenderer()
-    labelRenderer.setSize(window.innerWidth, window.innerHeight)
-    labelRenderer.domElement.style.position = "absolute"
-    labelRenderer.domElement.style.top = "0"
-    labelRenderer.domElement.style.pointerEvents = "none"
-    document.body.appendChild(labelRenderer.domElement)
+    lobbyLabelRenderer = new CSS2DRenderer()
+    lobbyLabelRenderer.setSize(window.innerWidth, window.innerHeight)
+    lobbyLabelRenderer.domElement.style.position = "absolute"
+    lobbyLabelRenderer.domElement.style.top = "0"
+    lobbyLabelRenderer.domElement.style.pointerEvents = "none"
+    document.body.appendChild(lobbyLabelRenderer.domElement)
 
     //note - Controls Init
-    const controls = new OrbitControls(camera, renderer.domElement)
+    const controls = new OrbitControls(camera, lobbyRenderer.domElement)
     controls.enablePan = false
 
     controls.enableDamping = true
@@ -163,18 +160,19 @@ export async function lobbyInit(): Promise<void> {
     cameraMain.controls.update()
 
     //note - Stats Init
-    const stats = new Stats()
-    stats.showPanel(0)
-    document.body.appendChild(stats.dom)
+    lobbyStats = new Stats()
+    lobbyStats.showPanel(0)
+    document.body.appendChild(lobbyStats.dom)
 
     //note - Resize Handling
-    window.addEventListener("resize", () => {
-        camera.aspect = window.innerWidth / window.innerHeight
-        camera.updateProjectionMatrix()
+    lobbyResizeHandler = (): void => {
+        cameraMain.object!.aspect = window.innerWidth / window.innerHeight
+        cameraMain.object!.updateProjectionMatrix()
 
-        renderer.setSize(window.innerWidth, window.innerHeight)
-        labelRenderer.setSize(window.innerWidth, window.innerHeight)
-    })    
+        lobbyRenderer?.setSize(window.innerWidth, window.innerHeight)
+        lobbyLabelRenderer?.setSize(window.innerWidth, window.innerHeight)
+    }
+    window.addEventListener("resize", lobbyResizeHandler)    
 
     //note - Car Init
     spawnCars([currentPlayer])
@@ -185,8 +183,8 @@ export async function lobbyInit(): Promise<void> {
 
     //fun - renderLoop()
     function renderLoop(): void {
-        requestAnimationFrame(renderLoop)
-        stats.begin()
+        animationFrameId = requestAnimationFrame(renderLoop)
+        lobbyStats?.begin()
 
         const ct = performance.now()
         let dt = pt < 0 ? 1 : Math.min(ct - pt, 100)
@@ -214,15 +212,15 @@ export async function lobbyInit(): Promise<void> {
             car.updateWheels(dt)
         })
 
-        cars.own!.updateEngine(dt, volumes.main / 75)
+        cars.own!.updateEngine(dt, audioMain.volumes.main / 75)
         cars.others.forEach((car) => {
-            car.updateEngine(dt, volumes.main * 0.2 / 75)
+            car.updateEngine(dt, audioMain.volumes.main * 0.2 / 75)
         })
     
         cameraMain.controls!.update()
 
-        renderer.render(scene, camera)
-        labelRenderer.render(scene, camera)
+        lobbyRenderer?.render(scene, cameraMain.object!)
+        lobbyLabelRenderer?.render(scene, cameraMain.object!)
         pt = ct
         lastThrottle = throttle
         lastSteer = steer
@@ -230,9 +228,9 @@ export async function lobbyInit(): Promise<void> {
 
         pressed["l"] = keys["l"]
         pressed["e"] = keys["e"]
-        stats.end()
+        lobbyStats?.end()
     }
-    requestAnimationFrame(renderLoop)
+    animationFrameId = requestAnimationFrame(renderLoop)
 }
 //!FUNCTION
 
@@ -461,7 +459,7 @@ export function changeColor(color: THREE.ColorRepresentation, target: CarLobby =
 
 //fun - changeVolume()
 export function changeVolume(key: keyof Volumes, volume: number): void {
-    volumes[key] = volume
+    audioMain.volumes[key] = volume
 }
 
 //fun - sendChanges()
@@ -527,27 +525,42 @@ socket.on("incomingHotUpdate", (player: LobbyPlayer) => {
 
 //!SECTION
 
-//SECTION - StartingTimer`
-const topText = document.getElementById("topText") as HTMLDivElement
+//fun - clearLobby()
+export function clearLobby(): void {
+    disposeLobby()
+    toggleLobbyUI(false)
+}
 
-//socket_In - initStartTimer
-socket.on("initStartTimer", () => {
-    topText.classList.add("selected")
-    topText.innerHTML = `Starting in ${config.game.starting_timer}s`
-})
+//fun - disposeLobby()
+function disposeLobby(): void {
+    if (animationFrameId != null) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+    }
 
-//socket_In - startTimerUpdate
-socket.on("startTimerUpdate", (sec: number) => {
-    topText.innerHTML = `Starting in ${sec}s`
-})
+    cars.own?.dispose()
+    cars.own = undefined
 
-//socket_In - abortStartTimer
-socket.on("abortStartTimer", () => {
-    topText.classList.remove("selected")
-})
+    cars.others.forEach((car) => {car.dispose()})
+    cars.others = []
 
-socket.on("startTimerFinish", () => {
-    topText.innerHTML = "Buon Anno"
-})
+    cameraMain.controls?.dispose()
+    cameraMain.controls = undefined
 
-//!SECTION
+    scene.clear()
+
+    if (lobbyResizeHandler) {
+        window.removeEventListener("resize", lobbyResizeHandler)
+        lobbyResizeHandler = undefined
+    }
+
+    lobbyRenderer?.domElement.remove()
+    lobbyRenderer?.dispose()
+    lobbyRenderer = undefined
+
+    lobbyLabelRenderer?.domElement.remove()
+    lobbyLabelRenderer = undefined
+
+    lobbyStats?.dom.remove()
+    lobbyStats = undefined
+}

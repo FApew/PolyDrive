@@ -1,16 +1,17 @@
 import { defineConfig } from "vite"
 import { readFileSync } from "node:fs"
 
-export default defineConfig({
-    root: "public",
-
+export default defineConfig(({ command }) => ({
+    publicDir: "public/assets",
     server: {
         host: "0.0.0.0",
         port: 5173,
-        https: {
-            cert: readFileSync("./localhost+2.pem"),
-            key: readFileSync("./localhost+2-key.pem"),
-        },
+        ...(command === "serve" ? {
+            https: {
+                cert: readFileSync(new URL("./localhost+2.pem", import.meta.url)),
+                key: readFileSync(new URL("./localhost+2-key.pem", import.meta.url)),
+            }
+        } : {}),
         proxy: {
             "/socket.io": {
                 target: "http://localhost:3000",
@@ -18,12 +19,6 @@ export default defineConfig({
             }
         }
     },
-
-    build: {
-        outDir: "../dist",
-        emptyOutDir: true
-    },
-
     plugins: [
         {
             name: "fullReload",
@@ -35,5 +30,5 @@ export default defineConfig({
                 })
             }
         }
-    ],
-})
+    ]
+}))

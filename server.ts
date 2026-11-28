@@ -4,19 +4,15 @@ import { createServer } from "http"
 import { fileURLToPath } from "url"
 import { Server } from "socket.io"
 
-import * as THREE from "three"
-
-import type { Room, LobbyPlayer, CarModelName, CarVisuals, DefaultChange, RoomState } from "./shared/types"
+import type { Room, LobbyPlayer, CarVisuals, DefaultChange, RoomState, WorldManifest } from "./shared/types"
 
 //SECTION - General Server Init
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-import YAML from "yaml"
-import fs from "node:fs"
-import type { GameConfig } from "./shared/config/configTypes"
-const configTxt = fs.readFileSync(join(__dirname, "shared/config/config.yaml"), "utf-8")
-const config: GameConfig = YAML.parse(configTxt)
+import { config } from "./private/ts/config"
+
+import { initializePhysics, createWorld, destroyWorld } from "./private/ts/physics"
 
 const PORT = process.env.PORT || 3000
 
@@ -55,7 +51,8 @@ function createRoom(id: string, code: string): void {
         code: code,
         leader: id,
         playerList: [],
-        state: "lobby"
+        state: "lobby",
+        manifest: null
     }
     roomRecord[code] = newRoom
 }
@@ -80,7 +77,8 @@ function joinRoom(id: string, username: string, carVisuals: CarVisuals, lights: 
 function leaveRoom(id: string): void {
     const code = playerRecord[id]
     if (code && roomRecord[code]) {
-
+        if (roomRecord[code].state == "starting") { roomRecord[code].state = "lobby" }
+        
         const playerList = roomRecord[code].playerList
 
         const idx = playerList.findIndex((player) => {return player.id == id})
@@ -91,10 +89,15 @@ function leaveRoom(id: string): void {
         if (playerIDsList.length > 0) {
             if (roomRecord[code].leader == id) { roomRecord[code].leader = playerIDsList[0]! }
 
-            io.to(playerIDsList).emit("lobbyRefresh", playerList)
+            switch (roomRecord[code].state) {
+                case "lobby": {
+                    io.to(playerIDsList).emit("lobbyRefresh", playerList)
+                    
+                    break
+                }
+            }
         }
 
-        console.log("User", id, "left", code)
         if (playerList.length == 0) {
             destroyRoom(code)
         }
@@ -103,8 +106,11 @@ function leaveRoom(id: string): void {
 
 //fun - destroyRoom()
 function destroyRoom(code: string): void {
+    if (!roomRecord[code]) return
+
+    if (roomRecord[code].state == "running") destroyWorld(code)
+
     delete roomRecord[code]
-    console.log("Lobby", code, "destroyed")
 }
 
 //fun - checkReadyState()
@@ -123,9 +129,9 @@ function checkReadyState(lobby: Room): void {
 //SECTION - Game Phase Handlers
 
 //fun - initStartTimer()
-async function initStartTimer(lobby: Room): Promise<void> {
-    lobby.state = "starting";
-    const playerIDsList = lobby.playerList.map((obj) => {return obj.id!})
+async function initStartTimer(room: Room): Promise<void> {
+    room.state = "starting";
+    const playerIDsList = room.playerList.map((obj) => {return obj.id!})
 
     //socket_Out - initStartTimer
     io.to(playerIDsList).emit("initStartTimer")
@@ -133,13 +139,13 @@ async function initStartTimer(lobby: Room): Promise<void> {
     for (let i = config.game.starting_timer - 1; i >= 0; i--) {
         await new Promise((res) => {setTimeout(res, 1000)})
 
-        if ((lobby.state as Room["state"]) == "lobby") return
+        if ((room.state as Room["state"]) == "lobby") return
 
         //socket_Out - startTimerUpdate
         io.to(playerIDsList).emit("startTimerUpdate", i)
     }
 
-    io.to(playerIDsList).emit("startTimerFinish")
+    timerFinished(room)
 }
 
 //fun - abortStartTimer()
@@ -151,11 +157,42 @@ function abortStartTimer(lobby: Room): void {
     io.to(playerIDsList).emit("abortStartTimer")
 }
 
+//fun - timerFinished()
+async function timerFinished(room: Room): Promise<void> {
+    const playerIDsList = room.playerList.map((obj) => {return obj.id!})
+
+    room.state = "running"
+
+    io.to(playerIDsList).emit("startTimerFinish")
+    await new Promise((res) => {setTimeout(res, 5)})
+    const pt = Date.now()
+
+    const manifest = getWorldManifest(room.code)
+    room.manifest = manifest
+
+    await new Promise((res) => {setTimeout(res, 5)})
+
+    const dt = Date.now() - pt
+    if (dt < 500 ) await new Promise((res) => {setTimeout(res, 500 - dt)})
+    io.to(playerIDsList).emit("gameRoomLoadingDone", manifest)
+}
+
 //!SECTION
+
+//SECTION - Game Physics & Objects
+
+//fun - generateWorldManifest()
+function getWorldManifest(code: string, seed: number = Date.now()): WorldManifest {
+    return createWorld(code, seed)
+}
+
+//fun - destroyWorld()
+function DestroyWorld(code: string): void {
+    destroyWorld(code)
+}
 
 //SECTION IO Handler
 io.on("connection", (socket) => {
-    console.log("User Connected:", socket.id)
 
     //socket_In - ping
     socket.on("ping", (time: number) => {
@@ -174,7 +211,6 @@ io.on("connection", (socket) => {
         const code = generateCode()
         createRoom(socket.id, code)
 
-        console.log("Lobby", code, "created")
         ack({code: code})
     })
 
@@ -182,8 +218,6 @@ io.on("connection", (socket) => {
     socket.on("joinLobby", ({code, user, carVisuals, lights}) => {
         if (roomRecord[code] == undefined) createRoom(socket.id, code)
         joinRoom(socket.id, user, carVisuals, lights, code)
-        
-        console.log("User", socket.id, "joined", code)
 
         const playerList = roomRecord[code]!.playerList
 
@@ -281,12 +315,12 @@ io.on("connection", (socket) => {
     
     //socket_In - disconnect
     socket.on("disconnect", () => {
-        console.log("User Disconnected:", socket.id)
-
         leaveRoom(socket.id)
     })
 })
 //!SECTION
+
+await initializePhysics()
 
 server.listen(PORT, () => {
     console.log(`PORT ${PORT} OPEN`)

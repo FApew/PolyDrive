@@ -55,9 +55,9 @@ export function genTrackLine(seed: number, planeDim: number, scene: THREE.Scene)
 //FUNCTION - getSegments()
 function getSegments(random: any): Segment[] {
     //note - segmentN Calculator
-    let segmentN = Math.round(random() * (config.track.max_segments - config.track.min_segments)) + config.track.min_segments
+    let segmentN = Math.round(random() * (config.track.segments.max - config.track.segments.min)) + config.track.segments.min
     if (segmentN % 2 == 1) {
-        if (segmentN < config.track.max_segments) {segmentN++}
+        if (segmentN < config.track.segments.max) {segmentN++}
         else {segmentN--}
     }
 
@@ -191,13 +191,13 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
                 (
                     (
                         dist != -1 && ( //Distance based Checks
-                            dist > config.track[currentMode].max_anchor_distance || 
-                            dist < config.track[currentMode].min_anchor_distance
+                            dist > config.track[currentMode].anchor_distance.max || 
+                            dist < config.track[currentMode].anchor_distance.min
                         )
                     ) || (
                         angle != -1 && ( //Angle based Checks
-                            angle < config.track[angleCheckMode].min_curve_angle || 
-                            angle > config.track[angleCheckMode].max_curve_angle
+                            angle < config.track[angleCheckMode].curve_angle.min || 
+                            angle > config.track[angleCheckMode].curve_angle.max
                         )
                     )
                 ) && ++o < config.track.max_tries
@@ -244,13 +244,13 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
                 if (
                     (
                         dist == -1 || (
-                            dist < config.track[currentMode].max_anchor_distance && 
-                            dist > config.track[currentMode].min_anchor_distance
+                            dist < config.track[currentMode].anchor_distance.max && 
+                            dist > config.track[currentMode].anchor_distance.min
                         )
                     ) && (
                         angle == -1 || (
-                            angle > config.track[currentMode].min_curve_angle && 
-                            angle < config.track[currentMode].max_curve_angle
+                            angle > config.track[currentMode].curve_angle.min && 
+                            angle < config.track[currentMode].curve_angle.max
                         )
                     )
                 ) {
@@ -294,7 +294,7 @@ function getPoints(segments: Segment[], random: any, planeDim: number): Point[] 
 
     if (points.length > 3) {
         let angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1]), o = 0
-        while ((angle0 < config.track.casual.min_curve_angle || angle0 > config.track.casual.max_curve_angle) && ++o < config.track.max_tries) {
+        while ((angle0 < config.track.casual.curve_angle.min || angle0 > config.track.casual.curve_angle.max) && ++o < config.track.max_tries) {
             points[0].r = (random() * (maxRadius - minRadius)) + minRadius
 
             angle0 = helperCalcAngle(points[points.length - 1], points[0], points[1])

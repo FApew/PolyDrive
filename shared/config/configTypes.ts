@@ -1,4 +1,4 @@
-import type { Car } from "../../private/ts/physics"
+import type { Car } from "../../private/temp/tempPhysics"
 import type { Range, CarModel, CarTune, TrackTune, Settings } from "../types"
 
 export type GameConfig = {
@@ -36,8 +36,7 @@ export type GameConfig = {
     }
 
     terrain: {
-        min_size: number
-        max_size: number
+        size: Range
         mesh_main_density: number
         main_frequency: number
         main_amplitude: number
@@ -72,12 +71,10 @@ export type GameConfig = {
         centerline_samples: number
 
         turn_size: number
-        inner_turn_max_distance: number
-        inner_turn_min_distance: number
+        inner_turn_distance: Range
         turn_smoothness: number
 
-        min_segments: number
-        max_segments: number
+        segments: Range
         max_segment_variation: number
         segment_border: number
         min_sector_length: number

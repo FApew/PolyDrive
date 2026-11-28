@@ -1,6 +1,6 @@
 import * as THREE from "three"
 import RAPIER from "@dimforge/rapier3d-compat"
-import { createStaticTrimesh } from "./physics"
+import { createStaticTrimesh } from "./tempPhysics"
 import { createNoise2D } from "simplex-noise"
 import alea from "alea"
 
